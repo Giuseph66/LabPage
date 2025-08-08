@@ -50,15 +50,15 @@ O **HardLab** é um sistema mobile completo para gestão de laboratórios de tec
 
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/hardlab.git
-cd hardlab
+git clone https://github.com/Giuseph66/LabPage.git
+cd LabPage
 
 # Instale as dependências do frontend
-cd frontend
+cd react-front
 npm install
 
 # Instale as dependências do backend
-cd ../backend
+cd ../java-back
 ./mvnw clean install
 ```
 
@@ -66,8 +66,8 @@ cd ../backend
 
 ```bash
 # Copie os arquivos de configuração
-cp backend/src/main/resources/application-example.yml backend/src/main/resources/application-local.yml
-cp frontend/app.config.example.js frontend/app.config.js
+cp java-back/src/main/resources/application-example.yml java-back/src/main/resources/application-local.yml
+cp react-front/app.config.example.js react-front/app.config.js
 
 # Edite as configurações conforme necessário
 ```
@@ -85,7 +85,7 @@ docker-compose ps
 ### 4. Executar Backend
 
 ```bash
-cd backend
+cd java-back
 
 # Execute as migrations
 ./mvnw flyway:migrate
@@ -100,7 +100,7 @@ cd backend
 ### 5. Executar Frontend
 
 ```bash
-cd frontend
+cd react-front
 
 # Inicie o servidor de desenvolvimento
 npx expo start
@@ -251,8 +251,8 @@ auditoria(id, usuario_id, acao, recurso, recurso_id, dados_anteriores, dados_nov
 ### Estrutura do Projeto
 
 ```
-hardlab/
-├── backend/                 # Spring Boot API
+LabPage/
+├── java-back/                 # Spring Boot API
 │   ├── src/main/java/
 │   │   ├── com/hardlab/
 │   │   │   ├── config/      # Configurações
@@ -266,28 +266,30 @@ hardlab/
 │   │       ├── db/migration/ # Flyway migrations
 │   │       └── application.yml
 │   └── Dockerfile
-├── frontend/                # React Native App
-│   ├── app/                 # Expo Router pages
-│   ├── components/          # Componentes reutilizáveis
-│   ├── hooks/              # Custom hooks
-│   ├── services/           # API services
-│   ├── stores/             # Estado global
-│   └── types/              # TypeScript types
-├── docker-compose.yml       # Infraestrutura local
-├── docs/                   # Documentação
-└── scripts/                # Scripts de automação
+├── react-front/               # React Native App
+│   ├── app/                  # Expo Router pages
+│   ├── components/           # Componentes reutilizáveis
+│   ├── hooks/               # Custom hooks
+│   ├── services/            # API services
+│   ├── stores/              # Estado global
+│   └── types/               # TypeScript types
+├── docker-compose.yml        # Infraestrutura local
+├── docs/                    # Documentação
+└── scripts/                 # Scripts de automação
 ```
 
 ### Comandos Úteis
 
 ```bash
 # Backend
+cd java-back
 ./mvnw clean install        # Build do projeto
 ./mvnw test                 # Executar testes
 ./mvnw flyway:migrate       # Executar migrations
 ./mvnw spring-boot:run      # Executar aplicação
 
 # Frontend
+cd react-front
 npm run start               # Iniciar servidor de desenvolvimento
 npm run build               # Build para produção
 npm run lint                # Verificar código
@@ -337,8 +339,8 @@ docker-compose -f docker-compose.dev.yml up -d
 ### Ambiente de Produção
 ```bash
 # Build das imagens
-docker build -t hardlab-backend ./backend
-docker build -t hardlab-frontend ./frontend
+docker build -t hardlab-backend ./java-back
+docker build -t hardlab-frontend ./react-front
 
 # Deploy com Docker Compose
 docker-compose -f docker-compose.prod.yml up -d
@@ -364,7 +366,7 @@ docker-compose -f docker-compose.prod.yml up -d
 - **Commits**: Conventional Commits
 - **Documentação**: Javadoc + JSDoc
 
-## 📄 Licença
+## �� Licença
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
@@ -378,8 +380,8 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 ## 📞 Suporte
 
 - **Email**: hardlab@exemplo.com
-- **Issues**: [GitHub Issues](https://github.com/seu-usuario/hardlab/issues)
-- **Documentação**: [Wiki](https://github.com/seu-usuario/hardlab/wiki)
+- **Issues**: [GitHub Issues](https://github.com/Giuseph66/LabPage/issues)
+- **Documentação**: [Wiki](https://github.com/Giuseph66/LabPage/wiki)
 
 ---
 

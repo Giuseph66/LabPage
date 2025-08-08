@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres-hardlab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hardlab-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hardlab
+      POSTGRES_USER: hardlab
+      POSTGRES_PASSWORD: hardlab123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./logs:/var/lib/postgresql/log
+      - ./backups:/backups
+    networks:
+      - hardlab-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hardlab -d hardlab"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Serviço opcional para administração do banco
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: hardlab-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@hardlab.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - hardlab-network
+    depends_on:
+      - postgres-hardlab
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  hardlab-network:
+    driver: bridge 

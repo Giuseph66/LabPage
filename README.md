@@ -181,38 +181,29 @@ auditoria(id, usuario_id, acao, recurso, recurso_id, dados_anteriores, dados_nov
 
 ## 🔌 API Endpoints
 
-### Autenticação
-- `POST /auth/login` - Login de usuário
-- `POST /auth/refresh` - Renovação de token
-- `GET /usuarios/me` - Perfil do usuário logado
+Base URL: `http://localhost:8080`
 
-### Projetos
-- `GET /projetos` - Lista de projetos
-- `POST /projetos` - Criar projeto
-- `GET /projetos/{id}` - Detalhes do projeto
-- `PUT /projetos/{id}` - Atualizar projeto
-- `DELETE /projetos/{id}` - Excluir projeto
-- `POST /projetos/{id}/membros` - Adicionar membro
-- `POST /projetos/{id}/anexos` - Upload de anexo
+👉 Documentação com cURL (completa e organizada): [java-back/API_ENDPOINTS.md](java-back/API_ENDPOINTS.md)
 
-### Materiais
-- `GET /materiais` - Lista de materiais
-- `POST /materiais` - Cadastrar material
-- `GET /materiais/{id}` - Detalhes do material
-- `PUT /materiais/{id}` - Atualizar material
-- `GET /qrcode/materiais/{id}` - QR Code do material
+### Autenticação (`/api/auth`)
+- `POST /api/auth/register` — Cadastrar usuário e receber JWT
+- `POST /api/auth/login` — Autenticar e receber JWT
+- `POST /api/auth/forgot-password` — Iniciar recuperação de senha
+- `POST /api/auth/reset-password` — Redefinir senha com token
 
-### Pedidos
-- `GET /pedidos` - Lista de pedidos
-- `POST /pedidos` - Criar pedido
-- `POST /pedidos/{id}/aprovar` - Aprovar pedido
-- `POST /pedidos/{id}/retirar` - Retirar materiais
-- `POST /pedidos/{id}/devolver` - Devolver materiais
+### Usuários (`/api/users`)
+- `GET /api/users/me` — Gmail do usuário autenticado (JWT)
+- `GET /api/users` — Listar usuários (ROLE_ADMIN)
+- `POST /api/users` — Criar usuário (ROLE_ADMIN)
+- `PUT /api/users/{id}` — Atualizar usuário (ROLE_ADMIN)
+- `DELETE /api/users/{id}` — Excluir usuário (ROLE_ADMIN)
+- `PUT /api/users/{id}/roles` — Atualizar roles (ROLE_ADMIN)
 
-### Relatórios
-- `GET /relatorios/estoque-baixo` - Materiais com estoque baixo
-- `GET /relatorios/uso-por-projeto` - Uso de materiais por projeto
-- `GET /relatorios/movimentacoes` - Histórico de movimentações
+### Notificações (`/api/notifications`)
+- `POST /api/notifications/device-token` — Registrar token de push do dispositivo (JWT)
+
+### Componentes (`/api/components`)
+- `GET /api/components/by-barcode?code=...` — Buscar por código/QR (stub)
 
 ## 🔄 Processos Assíncronos
 

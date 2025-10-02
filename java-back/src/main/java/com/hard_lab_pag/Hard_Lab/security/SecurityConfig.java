@@ -39,8 +39,7 @@ public class SecurityConfig {
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(registry -> registry
-				.requestMatchers("/api/auth/**").permitAll()
-				.requestMatchers("/api/notifications/device-token").authenticated()
+				.requestMatchers("/api/auth/**", "/api/notifications/device-token").permitAll()
 				.anyRequest().authenticated()
 			)
 			.authenticationProvider(authenticationProvider())

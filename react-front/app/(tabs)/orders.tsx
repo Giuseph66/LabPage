@@ -12,6 +12,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -20,172 +21,216 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Tipos de pedidos
+// Tipos de pedidos (ajustados para dados reais da API)
 interface Order {
   id: string;
   orderNumber: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'draft' | 'pending' | 'approved' | 'quotation' | 'purchase' | 'transport' | 'received' | 'completed' | 'rejected' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'critical';
   requester: string;
+  department: string;
+  desiredDate: string;
+  orderType: 'external_purchase' | 'stock_withdrawal' | 'lab_transfer';
+  purchaseMode: 'multiple_quotation' | 'single_supplier' | 'internal_stock';
+  subtotal: number;
+  total: number;
+  currency: 'BRL' | 'USD' | 'EUR';
+  createdAt: string;
+  updatedAt: string;
+  category: string;
+  description: string;
   items: number;
   totalValue: number;
   requestDate: string;
   estimatedDelivery: string;
-  description: string;
-  category: string;
 }
 
-// Dados mockados para demonstração
-const mockOrders: Order[] = [
-  {
-    id: '1',
-    orderNumber: 'ORD-2024-001',
-    status: 'pending',
-    priority: 'high',
-    requester: 'João Silva',
-    items: 8,
-    totalValue: 1250.50,
-    requestDate: '2024-01-15',
-    estimatedDelivery: '2024-01-25',
-    description: 'Sensores DHT22, LEDs RGB, resistores 220Ω',
-    category: 'Sensores',
-  },
-  {
-    id: '2',
-    orderNumber: 'ORD-2024-002',
-    status: 'approved',
-    priority: 'medium',
-    requester: 'Maria Santos',
-    items: 12,
-    totalValue: 890.00,
-    requestDate: '2024-01-12',
-    estimatedDelivery: '2024-01-22',
-    description: 'Arduino Uno R3, breadboards, jumpers',
-    category: 'Microcontroladores',
-  },
-  {
-    id: '3',
-    orderNumber: 'ORD-2024-003',
-    status: 'completed',
-    priority: 'urgent',
-    requester: 'Carlos Lima',
-    items: 5,
-    totalValue: 2100.00,
-    requestDate: '2024-01-10',
-    estimatedDelivery: '2024-01-20',
-    description: 'ESP32 DevKit, módulos WiFi, antenas',
-    category: 'IoT',
-  },
-  {
-    id: '4',
-    orderNumber: 'ORD-2024-004',
-    status: 'rejected',
-    priority: 'low',
-    requester: 'Ana Costa',
-    items: 3,
-    totalValue: 450.00,
-    requestDate: '2024-01-08',
-    estimatedDelivery: '2024-01-18',
-    description: 'Motores DC, rodas, chassi',
-    category: 'Robótica',
-  },
-  {
-    id: '5',
-    orderNumber: 'ORD-2024-005',
-    status: 'pending',
-    priority: 'high',
-    requester: 'Pedro Alves',
-    items: 15,
-    totalValue: 3200.00,
-    requestDate: '2024-01-14',
-    estimatedDelivery: '2024-01-24',
-    description: 'Servomotores, controladores, baterias',
-    category: 'Robótica',
-  },
-  {
-    id: '6',
-    orderNumber: 'ORD-2024-006',
-    status: 'approved',
-    priority: 'medium',
-    requester: 'Lucia Ferreira',
-    items: 6,
-    totalValue: 750.00,
-    requestDate: '2024-01-13',
-    estimatedDelivery: '2024-01-23',
-    description: 'Capacitores, diodos, transistores',
-    category: 'Eletrônicos',
-  },
-];
+import { API_BASE_URL } from '@/env';
 
-const categories = ['Todos', 'Sensores', 'Microcontroladores', 'IoT', 'Robótica', 'Eletrônicos'];
-const statusOptions = ['Todos', 'Pendente', 'Aprovado', 'Rejeitado', 'Concluído', 'Cancelado'];
-const priorityOptions = ['Todos', 'Baixa', 'Média', 'Alta', 'Urgente'];
+// Estado inicial vazio
+const initialOrders: Order[] = [];
+
+const categories = ['Todos', 'Resistores', 'Capacitores', 'Microcontroladores', 'Sensores', 'LEDs', 'Ferramentas', 'Motores', 'Conectores', 'Baterias', 'Displays', 'ICs', 'Transistores', 'Indutores'];
+const statusOptions = ['Todos', 'Rascunho', 'Pendente', 'Aprovado', 'Cotação', 'Compra', 'Transporte', 'Recebido', 'Concluído', 'Rejeitado', 'Cancelado'];
+const priorityOptions = ['Todos', 'Baixa', 'Média', 'Alta', 'Crítica'];
+
+// Função para buscar pedidos da API
+const fetchOrders = async (): Promise<Order[]> => {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const savedToken = await AsyncStorage.getItem('@LabPage:token');
+
+    const response = await fetch(`${API_BASE_URL}/api/orders`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao buscar pedidos');
+    }
+
+    const data = await response.json();
+    return data.map((item: any) => ({
+      id: item.id?.toString(),
+      orderNumber: item.data?.orderNumber || item.orderNumber,
+      status: item.data?.status || item.status,
+      priority: item.data?.priority || item.priority,
+      requester: item.data?.requester || item.requester,
+      department: item.data?.department || item.department,
+      desiredDate: item.data?.desiredDate || item.desiredDate,
+      orderType: item.data?.orderType || item.orderType,
+      purchaseMode: item.data?.purchaseMode || item.purchaseMode,
+      subtotal: item.data?.subtotal || item.subtotal || 0,
+      total: item.data?.total || item.total || 0,
+      currency: item.data?.currency || item.currency,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      // Campos adicionais para compatibilidade com a interface
+      category: item.data?.category || 'Geral',
+      description: item.data?.description || 'Pedido de componentes',
+      items: item.data?.items?.length || 0,
+      totalValue: item.data?.total || item.total || 0,
+      requestDate: item.data?.desiredDate || item.desiredDate || item.createdAt,
+      estimatedDelivery: item.data?.estimatedDelivery || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar pedidos:', error);
+    throw error;
+  }
+};
 
 export default function OrdersScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const { user } = useAuth();
-  
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>(initialOrders);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedStatus, setSelectedStatus] = useState('Todos');
   const [selectedPriority, setSelectedPriority] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredOrders, setFilteredOrders] = useState(mockOrders);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState(3);
-  
+
   // Estados para os comboboxes
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showPriorityModal, setShowPriorityModal] = useState(false);
 
-  // Filtrar pedidos
+  // Carregar pedidos ao montar o componente
   React.useEffect(() => {
-    let filtered = mockOrders;
-    
-    if (selectedCategory !== 'Todos') {
-      filtered = filtered.filter(order => order.category === selectedCategory);
+    loadOrders();
+  }, []);
+
+  // Filtrar pedidos quando os filtros mudam
+  React.useEffect(() => {
+    filterOrders();
+  }, [orders, selectedCategory, selectedStatus, selectedPriority, searchQuery]);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchOrders();
+      setOrders(data);
+    } catch (err) {
+      setError('Erro ao carregar pedidos');
+      console.error('Erro ao carregar pedidos:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    if (selectedStatus !== 'Todos') {
-      const statusMap = {
-        'Pendente': 'pending',
-        'Aprovado': 'approved',
-        'Rejeitado': 'rejected',
-        'Concluído': 'completed',
-        'Cancelado': 'cancelled'
-      };
-      const statusValue = statusMap[selectedStatus as keyof typeof statusMap];
-      filtered = filtered.filter(order => order.status === statusValue);
+  };
+
+  const filterOrders = () => {
+    let filtered = orders;
+
+    // Filtro por categoria
+    if (selectedCategory !== 'Todos') {
+      filtered = filtered.filter(order => {
+        if (!order.category) return false;
+        return order.category.toLowerCase().includes(selectedCategory.toLowerCase());
+      });
     }
 
-    if (selectedPriority !== 'Todos') {
-      const priorityMap = {
-        'Baixa': 'low',
-        'Média': 'medium',
-        'Alta': 'high',
-        'Urgente': 'urgent'
-      };
-      const priorityValue = priorityMap[selectedPriority as keyof typeof priorityMap];
-      filtered = filtered.filter(order => order.priority === priorityValue);
+    // Filtro por status
+    if (selectedStatus !== 'Todos') {
+      filtered = filtered.filter(order => {
+        const orderStatus = order.status;
+        if (!orderStatus) return false;
+        
+        // Mapear status em português para status em inglês
+        const statusMap: { [key: string]: string } = {
+          'Rascunho': 'draft',
+          'Pendente': 'pending',
+          'Aprovado': 'approved',
+          'Cotação': 'quotation',
+          'Compra': 'purchase',
+          'Transporte': 'transport',
+          'Recebido': 'received',
+          'Concluído': 'completed',
+          'Rejeitado': 'rejected',
+          'Cancelado': 'cancelled'
+        };
+        
+        return orderStatus === statusMap[selectedStatus];
+      });
     }
-    
+
+    // Filtro por prioridade
+    if (selectedPriority !== 'Todos') {
+      filtered = filtered.filter(order => {
+        const orderPriority = order.priority;
+        if (!orderPriority) return false;
+        
+        // Mapear prioridade em português para prioridade em inglês
+        const priorityMap: { [key: string]: string } = {
+          'Baixa': 'low',
+          'Média': 'medium',
+          'Alta': 'high',
+          'Crítica': 'critical'
+        };
+        
+        return orderPriority === priorityMap[selectedPriority];
+      });
+    }
+
+    // Filtro por busca
     if (searchQuery) {
-      filtered = filtered.filter(order => 
-        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.requester.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.description.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(order =>
+        (order.orderNumber && order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (order.requester && order.requester.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (order.department && order.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (order.description && order.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
-    
+
     setFilteredOrders(filtered);
-  }, [selectedCategory, selectedStatus, selectedPriority, searchQuery]);
+  };
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadOrders();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'draft': return '#6B7280'; // Cinza
       case 'pending': return '#F59E0B'; // Amarelo
       case 'approved': return '#22C55E'; // Verde
+      case 'quotation': return '#3B82F6'; // Azul
+      case 'purchase': return '#8B5CF6'; // Roxo
+      case 'transport': return '#F97316'; // Laranja
+      case 'received': return '#10B981'; // Verde escuro
+      case 'completed': return '#059669'; // Verde mais escuro
       case 'rejected': return '#EF4444'; // Vermelho
-      case 'completed': return '#00E5FF'; // Ciano
       case 'cancelled': return '#6B7280'; // Cinza
       default: return colors.textSecondary;
     }
@@ -196,17 +241,22 @@ export default function OrdersScreen() {
       case 'low': return '#22C55E'; // Verde
       case 'medium': return '#F59E0B'; // Amarelo
       case 'high': return '#F97316'; // Laranja
-      case 'urgent': return '#EF4444'; // Vermelho
+      case 'critical': return '#EF4444'; // Vermelho
       default: return colors.textSecondary;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
+      case 'draft': return 'RASCUNHO';
       case 'pending': return 'PENDENTE';
       case 'approved': return 'APROVADO';
-      case 'rejected': return 'REJEITADO';
+      case 'quotation': return 'COTAÇÃO';
+      case 'purchase': return 'COMPRA';
+      case 'transport': return 'TRANSPORTE';
+      case 'received': return 'RECEBIDO';
       case 'completed': return 'CONCLUÍDO';
+      case 'rejected': return 'REJEITADO';
       case 'cancelled': return 'CANCELADO';
       default: return 'DESCONHECIDO';
     }
@@ -217,7 +267,7 @@ export default function OrdersScreen() {
       case 'low': return 'BAIXA';
       case 'medium': return 'MÉDIA';
       case 'high': return 'ALTA';
-      case 'urgent': return 'URGENTE';
+      case 'critical': return 'CRÍTICA';
       default: return 'DESCONHECIDA';
     }
   };
@@ -268,7 +318,7 @@ export default function OrdersScreen() {
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Itens</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>R$ {item.totalValue.toFixed(2)}</Text>
+          <Text style={[styles.statValue, { color: colors.textPrimary }]}>R$ {(item.totalValue || 0).toFixed(2)}</Text>
           <Text style={[styles.statLabel2, { color: colors.textSecondary }]}>Valor</Text>
         </View>
         <View style={styles.statItem}>
@@ -288,11 +338,11 @@ export default function OrdersScreen() {
   );
 
   const getStats = () => {
-    const total = mockOrders.length;
-    const pending = mockOrders.filter(o => o.status === 'pending').length;
-    const approved = mockOrders.filter(o => o.status === 'approved').length;
-    const totalValue = mockOrders.reduce((sum, o) => sum + o.totalValue, 0);
-    
+    const total = filteredOrders.length;
+    const pending = filteredOrders.filter(o => o.status === 'pending').length;
+    const approved = filteredOrders.filter(o => o.status === 'approved').length;
+    const totalValue = filteredOrders.reduce((sum, o) => sum + o.total, 0);
+
     return { total, pending, approved, totalValue };
   };
 
@@ -322,7 +372,7 @@ export default function OrdersScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/extra/profile')}>
             <View style={[styles.avatar, { backgroundColor: colors.accentPrimary }]}>
               <Text style={styles.avatarText}>
-                {user?.name?.charAt(0) || 'U'}
+                {user?.nome?.charAt(0) || 'U'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -401,14 +451,54 @@ export default function OrdersScreen() {
         </View>
       </View>
 
+      {/* Loading/Error State */}
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Carregando pedidos...
+          </Text>
+        </View>
+      )}
+
+      {error && !loading && (
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.accentPrimary }]}
+            onPress={loadOrders}
+          >
+            <Text style={styles.retryButtonText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Orders List */}
-      <FlatList
-        data={filteredOrders}
-        renderItem={renderOrderCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.ordersList}
-        showsVerticalScrollIndicator={false}
-      />
+      {!loading && !error && (
+        <FlatList
+          data={filteredOrders}
+          renderItem={renderOrderCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.ordersList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.textSecondary}
+              colors={[colors.accentPrimary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                Nenhum pedido encontrado
+              </Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Floating Action Button */}
       <FloatingActionButton 
@@ -813,5 +903,44 @@ const styles = StyleSheet.create({
   modalItemText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  emptyText: {
+    fontSize: 16,
   },
 }); 

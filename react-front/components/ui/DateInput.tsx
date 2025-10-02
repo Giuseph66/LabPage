@@ -10,6 +10,7 @@ interface DateInputProps {
   value: string; // formato YYYY-MM-DD ou ""
   onChange: (dateStr: string) => void;
   placeholder?: string;
+  error?: string;
 }
 
 const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -22,7 +23,7 @@ function pad(n: number) {
   return n.toString().padStart(2, '0');
 }
 
-export function DateInput({ label, value, onChange, placeholder = 'Selecionar' }: DateInputProps) {
+export function DateInput({ label, value, onChange, placeholder = 'Selecionar', error }: DateInputProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   
@@ -174,7 +175,7 @@ export function DateInput({ label, value, onChange, placeholder = 'Selecionar' }
           styles.input, 
           { 
             backgroundColor: colors.surface, 
-            borderColor: colors.border 
+            borderColor: error ? colors.error : colors.border 
           }
         ]} 
         onPress={open}
@@ -185,6 +186,11 @@ export function DateInput({ label, value, onChange, placeholder = 'Selecionar' }
           {value ? value.split('-').reverse().join('/') : placeholder}
         </Text>
       </TouchableOpacity>
+      {error && (
+        <Text style={{ color: colors.error, fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+          {error}
+        </Text>
+      )}
       {visible && (
         <Modal transparent animationType="fade"
           onRequestClose={() => setVisible(false)}

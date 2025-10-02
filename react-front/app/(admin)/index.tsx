@@ -89,9 +89,6 @@ export default function AdminIndexScreen() {
 
   return (
     <Screen 
-      title="Painel Admin" 
-      subtitle="Acesso administrativo do sistema"
-      scrollable={true}
     >
       <View style={styles.container}>
         <View style={[styles.welcomeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

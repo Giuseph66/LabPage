@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 
 // API helper
-const API_BASE_URL = 'http://192.168.0.25:8080';
+import { API_BASE_URL } from '@/env';
 
 // Interfaces
 interface ReservationForm {
@@ -177,7 +177,7 @@ export default function ReservationFormScreen() {
       interval: 1,
       exceptions: [],
     },
-    responsible: user?.name || '',
+    responsible: user?.nome || '',
     participants: 1,
     purpose: '',
     observations: '',
@@ -193,6 +193,7 @@ export default function ReservationFormScreen() {
     termsAccepted: false,
     conflicts: [],
   });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const [filteredResources, setFilteredResources] = useState(mockResources);
 
@@ -221,21 +222,21 @@ export default function ReservationFormScreen() {
   };
 
   const validateStep = (step: number): boolean => {
+    const newErrors: { [key: string]: string } = {};
     switch (step) {
       case 1:
-        if (!formData.resourceType || !formData.resourceId) {
-          Alert.alert('Erro', 'Selecione o tipo e o recurso');
-          return false;
-        }
-        return true;
+        if (!formData.resourceType) newErrors.resourceType = 'Obrigatório';
+        if (!formData.resourceId) newErrors.resourceId = 'Obrigatório';
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return Object.keys(newErrors).length === 0;
       case 2:
-        if (!formData.date || !formData.startTime || !formData.endTime) {
-          Alert.alert('Erro', 'Preencha todas as datas e horários');
-          return false;
-        }
+        if (!formData.date) newErrors.date = 'Obrigatório';
+        if (!formData.startTime) newErrors.startTime = 'Obrigatório';
+        if (!formData.endTime) newErrors.endTime = 'Obrigatório';
         // Validar data de fim para recorrência
         if (formData.recurrence.type !== 'none' && !formData.recurrence.endDate) {
-          Alert.alert('Erro', 'Para reservas recorrentes, informe a data de fim');
+          newErrors.recurrenceEnd = 'Informe a data de fim da recorrência';
+          setErrors(prev => ({ ...prev, ...newErrors }));
           return false;
         }
         // Validar se a data de fim é posterior à data de início
@@ -243,20 +244,22 @@ export default function ReservationFormScreen() {
           const startDate = new Date(formData.date.split('/').reverse().join('-'));
           const endDate = new Date(formData.recurrence.endDate.split('/').reverse().join('-'));
           if (endDate <= startDate) {
-            Alert.alert('Erro', 'A data de fim deve ser posterior à data de início');
+            newErrors.recurrenceEnd = 'Deve ser após a data inicial';
+            setErrors(prev => ({ ...prev, ...newErrors }));
             return false;
           }
         }
-        return true;
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return Object.keys(newErrors).length === 0;
       case 3:
-        if (!formData.responsible || !formData.purpose) {
-          Alert.alert('Erro', 'Preencha o responsável e a finalidade');
-          return false;
-        }
-        return true;
+        if (!formData.responsible) newErrors.responsible = 'Obrigatório';
+        if (!formData.purpose) newErrors.purpose = 'Obrigatório';
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return Object.keys(newErrors).length === 0;
       case 4:
         if (!formData.termsAccepted) {
-          Alert.alert('Erro', 'Você deve aceitar os termos de uso');
+          newErrors.termsAccepted = 'Aceite os termos';
+          setErrors(prev => ({ ...prev, ...newErrors }));
           return false;
         }
         return true;
@@ -556,6 +559,8 @@ export default function ReservationFormScreen() {
           value={formData.date}
           onChange={(text: string) => updateFormData('date', text)}
           placeholder="DD/MM/AAAA"
+          label="Data *"
+          error={errors.date}
         />
       </View>
 
@@ -574,6 +579,9 @@ export default function ReservationFormScreen() {
             </Text>
             <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
+          {!!errors.startTime && (
+            <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{errors.startTime}</Text>
+          )}
         </View>
         <View style={styles.timeField}>
           <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>
@@ -588,6 +596,9 @@ export default function ReservationFormScreen() {
             </Text>
             <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
+          {!!errors.endTime && (
+            <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{errors.endTime}</Text>
+          )}
         </View>
       </View>
 
@@ -781,6 +792,7 @@ export default function ReservationFormScreen() {
         value={formData.responsible}
         onChangeText={(text) => updateFormData('responsible', text)}
         placeholder="Nome do responsável"
+        error={errors.responsible}
       />
 
       {/* Participantes */}
@@ -813,6 +825,9 @@ export default function ReservationFormScreen() {
           multiline
           numberOfLines={4}
         />
+        {!!errors.purpose && (
+          <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{errors.purpose}</Text>
+        )}
       </View>
 
       {/* Observações */}

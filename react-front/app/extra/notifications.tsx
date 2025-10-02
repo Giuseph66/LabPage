@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 
 // API helper
-const API_BASE_URL = 'http://192.168.0.25:8080';
+import { API_BASE_URL } from '@/env';
 
 // Interfaces
 interface Notification {

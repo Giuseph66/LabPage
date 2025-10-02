@@ -15,6 +15,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Input } from './Input';
 import { Button } from './Button';
+import { API_BASE_URL } from '@/env';
 
 interface User {
   id: number;
@@ -132,7 +133,7 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
         payload.senhaHash = novaSenha.trim();
       }
 
-      const response = await fetch(`http://localhost:8080/api/users/${user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -161,7 +162,7 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={onClose}
     >
@@ -387,12 +388,22 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   modalContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
+    width: '100%',
+    height: '90%',
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   header: {
     flexDirection: 'row',

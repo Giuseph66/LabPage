@@ -24,6 +24,8 @@ interface Component {
   inStock: number;
   unitPrice: number;
   preferredSupplier: string;
+  leadTime: number;
+  link_compra: string;
 }
 
 interface ComponentSelectorProps {
@@ -33,6 +35,8 @@ interface ComponentSelectorProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   components: Component[];
+  loading?: boolean;
+  onNavigateToComponentForm?: () => void;
 }
 
 export function ComponentSelector({
@@ -42,6 +46,8 @@ export function ComponentSelector({
   searchQuery,
   onSearchChange,
   components,
+  loading = false,
+  onNavigateToComponentForm,
 }: ComponentSelectorProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
@@ -106,9 +112,8 @@ export function ComponentSelector({
   }, [debouncedSearchQuery, components]);
 
   const handleSelect = (component: Component) => {
-    const componente = components.find(c => c.name === component as any);
-    console.log(componente);
-    onSelect(componente as Component);
+    console.log('Componente selecionado:', component);
+    onSelect(component);
     onClose();
   };
 
@@ -167,9 +172,14 @@ export function ComponentSelector({
       <View style={styles.overlay}>
         <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-              Selecionar Componente ({components.length} disponíveis)
-            </Text>
+            <View style={styles.modalTitleContainer}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                Selecionar Componente
+              </Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                {components.length} componentes disponíveis
+              </Text>
+            </View>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
@@ -229,7 +239,14 @@ export function ComponentSelector({
           )}
 
           <ScrollView style={styles.componentsList} showsVerticalScrollIndicator={false}>
-            {displayComponents.length === 0 ? (
+            {loading ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="hourglass-outline" size={48} color={colors.textSecondary} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Carregando componentes...
+                </Text>
+              </View>
+            ) : displayComponents.length === 0 ? (
               <View style={styles.emptyState}>
                 {debouncedSearchQuery.length > 0 ? (
                   <>
@@ -238,8 +255,20 @@ export function ComponentSelector({
                       Nenhum componente encontrado
                     </Text>
                     <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-                      Tente uma busca diferente
+                      Tente uma busca diferente ou cadastre um novo componente
                     </Text>
+                    <TouchableOpacity
+                      style={[styles.newComponentButton, { backgroundColor: colors.accentPrimary }]}
+                      onPress={() => {
+                        onClose();
+                        onNavigateToComponentForm?.();
+                      }}
+                    >
+                      <Ionicons name="add-circle" size={20} color="#000000" />
+                      <Text style={[styles.newComponentButtonText, { color: '#000000' }]}>
+                        Cadastrar Novo Componente
+                      </Text>
+                    </TouchableOpacity>
                   </>
                 ) : (
                   <>
@@ -250,6 +279,18 @@ export function ComponentSelector({
                     <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
                       Cadastre componentes para começar
                     </Text>
+                    <TouchableOpacity
+                      style={[styles.newComponentButton, { backgroundColor: colors.accentPrimary }]}
+                      onPress={() => {
+                        onClose();
+                        onNavigateToComponentForm?.();
+                      }}
+                    >
+                      <Ionicons name="add-circle" size={20} color="#000000" />
+                      <Text style={[styles.newComponentButtonText, { color: '#000000' }]}>
+                        Cadastrar Primeiro Componente
+                      </Text>
+                    </TouchableOpacity>
                   </>
                 )}
               </View>
@@ -294,20 +335,11 @@ export function ComponentSelector({
                     </Text>
                   </View>
 
-                  {/* Botão de Confirmar */}
-                  <View style={styles.confirmButtonContainer}>
-                    <TouchableOpacity
-                      style={[styles.confirmButton, { backgroundColor: colors.accentPrimary }]}
-                      onPress={() => handleSelect(component)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="checkmark-circle" size={18} color="#000000" />
-                      <Text style={[styles.confirmButtonText, { color: '#000000' }]}>
-                        Confirmar Seleção
-                      </Text>
-                    </TouchableOpacity>
-                    <Text style={[styles.confirmHint, { color: colors.textSecondary }]}>
-                      Toque para selecionar este componente
+                  {/* Indicador de seleção */}
+                  <View style={styles.selectionIndicator}>
+                    <Ionicons name="checkmark-circle-outline" size={20} color={colors.accentPrimary} />
+                    <Text style={[styles.selectionText, { color: colors.accentPrimary }]}>
+                      Toque para selecionar
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -315,18 +347,6 @@ export function ComponentSelector({
             )}
           </ScrollView>
 
-          {displayComponents.length > 0 && (
-            <View style={styles.modalFooter}>
-            <Button
-            title="Confirmar Produto"
-            variant="primary"
-                onPress={() => {
-                  handleSelect(searchQuery as any);
-                  onClose();
-                }}
-              />
-            </View>
-          )}
         </View>
       </View>
     </Modal>
@@ -364,9 +384,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  modalTitleContainer: {
+    flex: 1,
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -497,36 +524,32 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     opacity: 0.7,
   },
-  confirmButton: {
+  selectionIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    minWidth: 160,
-  },
-  confirmButtonText: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  confirmButtonContainer: {
-    alignItems: 'center',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
+    gap: 8,
   },
-  confirmHint: {
-    fontSize: 12,
-    marginTop: 6,
-    textAlign: 'center',
-    opacity: 0.8,
+  selectionText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  newComponentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  newComponentButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 

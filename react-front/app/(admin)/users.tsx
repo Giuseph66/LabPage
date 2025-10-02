@@ -5,10 +5,10 @@ import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { router } from "expo-router";
 import React, { useState, useEffect } from "react";
-import { ScrollView, StyleSheet, View, Text, FlatList, Alert, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ScrollView, StyleSheet, View, Text, FlatList, Alert, TouchableOpacity, ActivityIndicator, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { UserEditModal } from "@/components/ui/UserEditModal";
-
+import { API_BASE_URL } from "@/env";
 interface User {
   id: number;
   gmail: string;
@@ -32,12 +32,13 @@ export default function UsersScreen() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [validating, setValidating] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       
-      const response = await fetch('http://localhost:8080/api/users', {
+      const response = await fetch(`${API_BASE_URL}/api/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -102,6 +103,26 @@ export default function UsersScreen() {
 
   const handleEditSuccess = () => {
     fetchUsers(); // Recarrega a lista
+  };
+
+  // Filtrar usuários baseado na pesquisa
+  const filteredUsers = users.filter(user => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      user.nome?.toLowerCase().includes(query) ||
+      user.gmail?.toLowerCase().includes(query) ||
+      user.matricula?.toLowerCase().includes(query) ||
+      user.curso?.toLowerCase().includes(query) ||
+      user.telefone?.toLowerCase().includes(query) ||
+      user.roles?.some(role => role.toLowerCase().includes(query)) ||
+      user.id.toString().includes(query)
+    );
+  });
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
   };
 
   const renderUser = ({ item, index }: { item: User; index: number }) => (
@@ -196,13 +217,25 @@ export default function UsersScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="people-outline" size={64} color={colors.textSecondary} />
+      <Ionicons 
+        name={searchQuery ? "search-outline" : "people-outline"} 
+        size={64} 
+        color={colors.textSecondary} 
+      />
       <Text style={[styles.emptyText, { color: colors.text }]}>
-        Nenhum usuário encontrado
+        {searchQuery ? 'Nenhum resultado encontrado' : 'Nenhum usuário encontrado'}
       </Text>
       <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-        Tente recarregar a lista
+        {searchQuery ? 'Tente ajustar sua pesquisa' : 'Tente recarregar a lista'}
       </Text>
+      {searchQuery && (
+        <TouchableOpacity 
+          style={[styles.clearSearchButton, { backgroundColor: colors.accentPrimary }]}
+          onPress={handleClearSearch}
+        >
+          <Text style={styles.clearSearchButtonText}>Limpar Pesquisa</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -222,6 +255,7 @@ export default function UsersScreen() {
   return (
     <Screen scrollable={false}>
       <View style={styles.container}>
+        {/* Header com Estatísticas */}
         <View style={[styles.headerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -230,7 +264,19 @@ export default function UsersScreen() {
                 {users.length}
               </Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                Usuários
+                Total
+              </Text>
+            </View>
+            
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.statItem}>
+              <Ionicons name="search" size={24} color={colors.accentPrimary} />
+              <Text style={[styles.statNumber, { color: colors.text }]}>
+                {filteredUsers.length}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                Filtrados
               </Text>
             </View>
             
@@ -253,6 +299,25 @@ export default function UsersScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Barra de Pesquisa */}
+        <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="search-outline" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Pesquisar por nome, email, matrícula, curso..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={handleClearSearch} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
         
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -263,7 +328,7 @@ export default function UsersScreen() {
           </View>
         ) : (
           <FlatList
-            data={users}
+            data={filteredUsers}
             renderItem={renderUser}
             keyExtractor={(item) => item.id.toString()}
             style={styles.list}
@@ -294,7 +359,28 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
     marginBottom: 20,
+    gap: 10,
+  },
+  searchIcon: {
+    marginRight: 4,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    padding: 0,
+  },
+  clearButton: {
+    padding: 4,
   },
   statsRow: {
     flexDirection: 'row',
@@ -421,6 +507,17 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 14,
+  },
+  clearSearchButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  clearSearchButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   editButton: {
     flexDirection: 'row',

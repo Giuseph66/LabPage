@@ -1,5 +1,6 @@
 export { default as Button } from './Button';
 export { default as ComponentSelector } from './ComponentSelector';
+export { ComponentPicker } from './ComponentPicker';
 export { default as DateInput } from './DateInput';
 export { default as DateSelector } from './DateSelector';
 export { default as FilterChip } from './FilterChip';

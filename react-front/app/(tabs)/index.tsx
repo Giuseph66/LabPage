@@ -22,32 +22,84 @@ import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-// Dados mockados
+import { API_BASE_URL } from '@/env';
+
+// Interfaces para dados reais
+interface DashboardKPIs {
+  reservationsToday: number;
+  ordersPending: number;
+  alertsCritical: number;
+  lowStock: number;
+}
+
+interface RecentReservation {
+  id: string;
+  time: string;
+  room: string;
+  equipment: string;
+  responsible: string;
+}
+
+interface RecentOrder {
+  id: string;
+  requester: string;
+  item: string;
+  status: string;
+  statusColor: string;
+}
+
+interface Reservation {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  resourceName: string;
+  responsible: string;
+  purpose: string;
+}
+
+interface Order {
+  id: string;
+  requester: string;
+  department: string;
+  status: string;
+  total: number;
+  createdAt: string;
+}
+
+interface Component {
+  id: string;
+  name: string;
+  currentStock: number;
+  minimumStock: number;
+}
+
+// Dados mockados para KPIs (serão substituídos por dados reais)
 const mockKPIs = [
   {
     id: '1',
     title: 'Reservas hoje',
-    value: '8',
-    subtitle: 'próximas / 12 total',
+    value: '12',
+    subtitle: 'próximas / 15 total',
     icon: 'calendar' as const,
     color: '#00E5FF',
     trend: 'up' as const,
-    trendValue: '+2',
+    trendValue: '+3',
   },
   {
     id: '2',
     title: 'Pedidos pendentes',
-    value: '15',
-    subtitle: '3 atrasados',
+    value: '8',
+    subtitle: '2 atrasados',
     icon: 'document-text' as const,
     color: '#F59E0B',
     trend: 'down' as const,
-    trendValue: '-3',
+    trendValue: '-2',
   },
   {
     id: '3',
     title: 'Alertas críticos',
-    value: '2',
+    value: '1',
     subtitle: 'manutenção',
     icon: 'warning' as const,
     color: '#EF4444',
@@ -55,7 +107,7 @@ const mockKPIs = [
   {
     id: '4',
     title: 'Baixo estoque',
-    value: '7',
+    value: '5',
     subtitle: 'itens < mínimo',
     icon: 'cube' as const,
     color: '#FF7A1A',
@@ -107,78 +159,225 @@ const mockQuickActions = [
   },
 ];
 
-const mockFilters = [
-  { id: '1', label: 'Reservas', badge: '8' },
-  { id: '2', label: 'Pedidos', badge: '15' },
-  { id: '3', label: 'Estoque', badge: '7' },
-  { id: '4', label: 'Projetos', badge: '12' },
-  { id: '5', label: 'Alertas', badge: '2' },
+// Filtros serão atualizados dinamicamente com os dados reais
+const getFilters = (kpis: DashboardKPIs) => [
+  { id: '1', label: 'Reservas', badge: kpis.reservationsToday.toString() },
+  { id: '2', label: 'Pedidos', badge: kpis.ordersPending.toString() },
+  { id: '3', label: 'Estoque', badge: kpis.lowStock.toString() },
+  { id: '4', label: 'Projetos', badge: '0' }, // Será implementado quando tivermos endpoint de projetos
+  { id: '5', label: 'Alertas', badge: kpis.alertsCritical.toString() },
 ];
 
-const mockRecentReservations = [
+const mockRecentReservations: RecentReservation[] = [
   {
     id: '1',
     time: '14:00',
-    room: 'Lab A',
-    equipment: 'Osciloscópio',
-    responsible: 'João Silva',
+    room: 'Bancada A',
+    equipment: 'Montagem de circuitos IoT',
+    responsible: 'Ana Silva',
   },
   {
     id: '2',
     time: '16:30',
-    room: 'Lab B',
-    equipment: 'Multímetro',
+    room: 'Lab de Robótica',
+    equipment: 'Workshop de programação',
     responsible: 'Maria Santos',
   },
   {
     id: '3',
     time: '18:00',
-    room: 'Lab C',
-    equipment: 'Fonte de Alimentação',
+    room: 'Lab de IoT',
+    equipment: 'Desenvolvimento casa inteligente',
     responsible: 'Carlos Lima',
   },
 ];
 
-const mockRecentOrders = [
+const mockRecentOrders: RecentOrder[] = [
   {
     id: '1',
-    requester: 'Ana Costa',
-    item: 'Resistores 220Ω',
-    status: 'Pendente',
-    statusColor: '#F59E0B',
+    requester: 'Patricia Rocha',
+    item: 'Multímetro Digital',
+    status: 'Recebido',
+    statusColor: '#10B981',
   },
   {
     id: '2',
-    requester: 'Pedro Alves',
-    item: 'LEDs RGB',
-    status: 'Aprovado',
-    statusColor: '#22C55E',
+    requester: 'Fernando Dias',
+    item: 'Resistores 10K',
+    status: 'Concluído',
+    statusColor: '#059669',
   },
   {
     id: '3',
-    requester: 'Lucia Ferreira',
-    item: 'Capacitores 100µF',
-    status: 'Rejeitado',
-    statusColor: '#EF4444',
+    requester: 'Gabriela Mendes',
+    item: 'IC LM358',
+    status: 'Cancelado',
+    statusColor: '#6B7280',
   },
 ];
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
-  const { user, signOut } = useAuth();
-  
+  const { user, signOut, token } = useAuth();
+
   const [selectedFilter, setSelectedFilter] = useState('Reservas');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState(3);
+  
+  // Estados para dados reais
+  const [kpis, setKpis] = useState<DashboardKPIs>({
+    reservationsToday: 0,
+    ordersPending: 0,
+    alertsCritical: 0,
+    lowStock: 0,
+  });
+  const [recentReservations, setRecentReservations] = useState<RecentReservation[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
 
-  const onRefresh = React.useCallback(() => {
+  // Carregar dados iniciais
+  React.useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Buscar dados de todas as APIs
+      const [reservationsResponse, ordersResponse, componentsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/reservations`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/orders`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/components`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+      ]);
+
+      const [reservations, orders, components] = await Promise.all([
+        reservationsResponse.ok ? reservationsResponse.json() : [],
+        ordersResponse.ok ? ordersResponse.json() : [],
+        componentsResponse.ok ? componentsResponse.json() : [],
+      ]);
+
+      // Calcular KPIs
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // Reservas de hoje
+      const reservationsToday = reservations.filter((reservation: Reservation) => {
+        if (!reservation.date) return false;
+        const reservationDate = reservation.date.split('T')[0];
+        return reservationDate === today;
+      }).length;
+
+      // Pedidos pendentes
+      const ordersPending = orders.filter((order: Order) => {
+        const status = order.status || 'pending';
+        return status === 'pending' || status === 'quotation';
+      }).length;
+
+      // Componentes com estoque baixo
+      const lowStock = components.filter((component: Component) => {
+        if (component.currentStock === undefined || component.minimumStock === undefined) return false;
+        return component.currentStock <= component.minimumStock && component.currentStock > 0;
+      }).length;
+
+      // Alertas críticos (componentes com estoque zero)
+      const alertsCritical = components.filter((component: Component) => {
+        if (component.currentStock === undefined) return false;
+        return component.currentStock === 0;
+      }).length;
+
+      setKpis({
+        reservationsToday,
+        ordersPending,
+        alertsCritical,
+        lowStock,
+      });
+
+      // Reservas recentes (próximas 3)
+      const upcomingReservations = reservations
+        .filter((reservation: Reservation) => {
+          if (!reservation.date) return false;
+          const reservationDate = new Date(reservation.date);
+          return reservationDate >= new Date();
+        })
+        .sort((a: Reservation, b: Reservation) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        )
+        .slice(0, 3)
+        .map((reservation: Reservation) => ({
+          id: reservation.id,
+          time: reservation.startTime || 'N/A',
+          room: reservation.resourceName || 'N/A',
+          equipment: reservation.purpose || 'N/A',
+          responsible: reservation.responsible || 'N/A',
+        }));
+
+      setRecentReservations(upcomingReservations);
+
+      // Pedidos recentes (últimos 3)
+      const recentOrdersData = orders
+        .filter((order: Order) => order.createdAt) // Filtrar apenas pedidos com data de criação
+        .sort((a: Order, b: Order) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        .slice(0, 3)
+        .map((order: Order) => ({
+          id: order.id,
+          requester: order.requester || 'N/A',
+          item: `${order.department || 'Departamento'} - Pedido`,
+          status: order.status === 'pending' ? 'Pendente' : 
+                 order.status === 'approved' ? 'Aprovado' :
+                 order.status === 'completed' ? 'Concluído' : 'Processando',
+          statusColor: order.status === 'pending' ? '#F59E0B' :
+                      order.status === 'approved' ? '#10B981' :
+                      order.status === 'completed' ? '#059669' : '#6B7280',
+        }));
+
+      setRecentOrders(recentOrdersData);
+
+    } catch (err) {
+      setError('Erro ao carregar dados do dashboard');
+      console.error('Erro ao carregar dados do dashboard:', err);
+      
+      // Definir valores padrão em caso de erro
+      setKpis({
+        reservationsToday: 0,
+        ordersPending: 0,
+        alertsCritical: 0,
+        lowStock: 0,
+      });
+      setRecentReservations([]);
+      setRecentOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    // Simular refresh
-    setTimeout(() => {
+    try {
+      await loadDashboardData();
+    } finally {
       setRefreshing(false);
-    }, 2000);
+    }
   }, []);
 
   const handleSignOut = () => {
@@ -195,22 +394,22 @@ export default function HomeScreen() {
   const handleQuickAction = (action: any) => {
     switch (action.title) {
       case 'Nova Reserva':
-        Alert.alert('Nova Reserva', 'Funcionalidade em desenvolvimento');
+        router.push('/extra/reservas/reservation-form');
         break;
       case 'Novo Pedido':
-        Alert.alert('Novo Pedido', 'Funcionalidade em desenvolvimento');
+        router.push('/extra/componentes/order-form');
         break;
       case 'Estoque':
-        Alert.alert('Estoque', 'Funcionalidade em desenvolvimento');
+        router.push('/(tabs)/components');
         break;
       case 'Novo Projeto':
-        Alert.alert('Novo Projeto', 'Funcionalidade em desenvolvimento');
+        router.push('/extra/project/project-form');
         break;
       case 'Scanner':
         Alert.alert('Scanner', 'Funcionalidade em desenvolvimento');
         break;
       case 'Relatórios':
-        Alert.alert('Relatórios', 'Funcionalidade em desenvolvimento');
+        router.push('/(admin)/stats');
         break;
       default:
         Alert.alert('Funcionalidade em desenvolvimento');
@@ -241,7 +440,7 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/extra/profile')}>
             <View style={[styles.avatar, { backgroundColor: colors.accentPrimary }]}>
               <Text style={styles.avatarText}>
-                {user?.name?.charAt(0) || 'U'}
+                {user?.nome?.charAt(0) || 'U'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -260,10 +459,41 @@ export default function HomeScreen() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.textSecondary}
+            colors={[colors.accentPrimary]}
+          />
         }
       >
-        {/* Search */}
+        {/* Loading/Error State */}
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Carregando dados do dashboard...
+            </Text>
+          </View>
+        )}
+
+        {error && !loading && (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, { color: colors.error }]}>
+              {error}
+            </Text>
+            <TouchableOpacity
+              style={[styles.retryButton, { backgroundColor: colors.accentPrimary }]}
+              onPress={loadDashboardData}
+            >
+              <Text style={styles.retryButtonText}>Tentar novamente</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Content */}
+        {!loading && !error && (
+        <>
+                {/* Search */}
         <View style={styles.searchContainer}>
           <View style={[styles.searchInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Ionicons name="search" size={20} color={colors.textSecondary} />
@@ -284,7 +514,7 @@ export default function HomeScreen() {
           style={styles.filtersContainer}
           contentContainerStyle={styles.filtersContent}
         >
-          {mockFilters.map((filter) => (
+          {getFilters(kpis).map((filter) => (
             <FilterChip
               key={filter.id}
               label={filter.label}
@@ -301,20 +531,46 @@ export default function HomeScreen() {
             Resumo do Dia
           </Text>
           <View style={styles.kpiGrid}>
-            {mockKPIs.map((kpi) => (
-              <View key={kpi.id} style={styles.kpiCardContainer}>
-                <KPICard
-                  title={kpi.title}
-                  value={kpi.value}
-                  subtitle={kpi.subtitle}
-                  icon={kpi.icon}
-                  color={kpi.color}
-                  trend={kpi.trend}
-                  trendValue={kpi.trendValue}
-                  onPress={() => Alert.alert(kpi.title, 'Detalhes em desenvolvimento')}
-                />
-              </View>
-            ))}
+            <View style={styles.kpiCardContainer}>
+              <KPICard
+                title="Reservas hoje"
+                value={kpis.reservationsToday.toString()}
+                subtitle="agendadas"
+                icon="calendar"
+                color="#00E5FF"
+                onPress={() => router.push('/(tabs)/reservations')}
+              />
+            </View>
+            <View style={styles.kpiCardContainer}>
+              <KPICard
+                title="Pedidos pendentes"
+                value={kpis.ordersPending.toString()}
+                subtitle="aguardando"
+                icon="document-text"
+                color="#F59E0B"
+                onPress={() => router.push('/(tabs)/orders')}
+              />
+            </View>
+            <View style={styles.kpiCardContainer}>
+              <KPICard
+                title="Alertas críticos"
+                value={kpis.alertsCritical.toString()}
+                subtitle="estoque zero"
+                icon="warning"
+                color="#EF4444"
+                onPress={() => router.push('/(tabs)/components')}
+              />
+            </View>
+            <View style={styles.kpiCardContainer}>
+              <KPICard
+                title="Baixo estoque"
+                value={kpis.lowStock.toString()}
+                subtitle="itens críticos"
+                icon="cube"
+                color="#FF7A1A"
+                onPress={() => router.push('/(tabs)/components')}
+              />
+            </View>
           </View>
         </View>
 
@@ -344,35 +600,43 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               Próximas Reservas
             </Text>
-            <TouchableOpacity onPress={() => Alert.alert('Reservas', 'Funcionalidade em desenvolvimento')}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/reservations')}>
               <Text style={[styles.seeAllText, { color: colors.accentPrimary }]}>
                 Ver todas
               </Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.listContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {mockRecentReservations.map((reservation) => (
-              <TouchableOpacity
-                key={reservation.id}
-                style={styles.listItem}
-                onPress={() => Alert.alert('Reserva', `${reservation.equipment} - ${reservation.room}`)}
-              >
-                <View style={styles.listItemLeft}>
-                  <Text style={[styles.listItemTime, { color: colors.accentPrimary }]}>
-                    {reservation.time}
-                  </Text>
-                  <View>
-                    <Text style={[styles.listItemTitle, { color: colors.textPrimary }]}>
-                      {reservation.equipment}
+            {recentReservations.length > 0 ? (
+              recentReservations.map((reservation) => (
+                <TouchableOpacity
+                  key={reservation.id}
+                  style={styles.listItem}
+                  onPress={() => router.push('/(tabs)/reservations')}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Text style={[styles.listItemTime, { color: colors.accentPrimary }]}>
+                      {reservation.time}
                     </Text>
-                    <Text style={[styles.listItemSubtitle, { color: colors.textSecondary }]}>
-                      {reservation.room} • {reservation.responsible}
-                    </Text>
+                    <View>
+                      <Text style={[styles.listItemTitle, { color: colors.textPrimary }]}>
+                        {reservation.equipment}
+                      </Text>
+                      <Text style={[styles.listItemSubtitle, { color: colors.textSecondary }]}>
+                        {reservation.room} • {reservation.responsible}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
-            ))}
+                  <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Nenhuma reserva próxima
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -389,34 +653,43 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={[styles.listContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {mockRecentOrders.map((order) => (
-              <TouchableOpacity
-                key={order.id}
-                style={styles.listItem}
-                onPress={() => Alert.alert('Pedido', `${order.item} - ${order.requester}`)}
-              >
-                <View style={styles.listItemLeft}>
-                  <Text style={[styles.listItemTitle, { color: colors.textPrimary }]}>
-                    {order.item}
-                  </Text>
-                  <Text style={[styles.listItemSubtitle, { color: colors.textSecondary }]}>
-                    {order.requester}
-                  </Text>
-                </View>
-                <View style={[styles.statusChip, { backgroundColor: order.statusColor + '20' }]}>
-                  <Text style={[styles.statusChipText, { color: order.statusColor }]}>
-                    {order.status}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {recentOrders.length > 0 ? (
+              recentOrders.map((order) => (
+                <TouchableOpacity
+                  key={order.id}
+                  style={styles.listItem}
+                  onPress={() => router.push('/(tabs)/orders')}
+                >
+                  <View style={styles.listItemLeft}>
+                    <Text style={[styles.listItemTitle, { color: colors.textPrimary }]}>
+                      {order.item}
+                    </Text>
+                    <Text style={[styles.listItemSubtitle, { color: colors.textSecondary }]}>
+                      {order.requester}
+                    </Text>
+                  </View>
+                  <View style={[styles.statusChip, { backgroundColor: order.statusColor + '20' }]}>
+                    <Text style={[styles.statusChipText, { color: order.statusColor }]}>
+                      {order.status}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Nenhum pedido recente
+                </Text>
+              </View>
+            )}
           </View>
         </View>
-
-        {/* Bottom Spacing */}
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
+ 
+          {/* Bottom Spacing */}
+          <View style={{ height: 100 }} />
+        </>
+    )}
+    </ScrollView>
     </SafeAreaView>
   );
 }
@@ -606,5 +879,43 @@ const styles = StyleSheet.create({
   quickActionCardContainer: {
     flex: 1,
     minWidth: '48%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyState: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
 }); 

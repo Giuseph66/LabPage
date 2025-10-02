@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import {
   Alert,
   FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -19,140 +20,149 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Tipos de componentes
+// Tipos de componentes (ajustados para dados reais da API)
 interface Component {
   id: string;
+  partNumber: string;
   name: string;
-  category: string;
-  stock: number;
-  minStock: number;
-  location: string;
-  lastUsed: string;
-  status: 'available' | 'low' | 'critical';
   description: string;
+  category: string;
+  subcategory?: string;
+  manufacturer?: string;
+  packageType?: string;
+  currentStock: number;
+  minimumStock: number;
+  storageLocation?: string;
+  status: 'active' | 'inactive' | 'obsolete';
+  datasheet?: string;
+  rohs?: boolean;
+  reach?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Dados mockados para demonstração
-const mockComponents: Component[] = [
-  {
-    id: '1',
-    name: 'Arduino Uno R3',
-    category: 'Microcontrolador',
-    stock: 15,
-    minStock: 5,
-    location: 'Gaveta A1',
-    lastUsed: '2024-01-15',
-    status: 'available',
-    description: 'Microcontrolador ATmega328P, 14 pinos digitais, 6 analógicos',
-  },
-  {
-    id: '2',
-    name: 'Resistor 220Ω',
-    category: 'Resistor',
-    stock: 3,
-    minStock: 10,
-    location: 'Gaveta B3',
-    lastUsed: '2024-01-10',
-    status: 'low',
-    description: 'Resistor de carbono 1/4W, tolerância 5%',
-  },
-  {
-    id: '3',
-    name: 'Sensor DHT22',
-    category: 'Sensor',
-    stock: 0,
-    minStock: 2,
-    location: 'Gaveta C2',
-    lastUsed: '2024-01-08',
-    status: 'critical',
-    description: 'Sensor de temperatura e umidade digital',
-  },
-  {
-    id: '4',
-    name: 'Capacitor 100µF',
-    category: 'Capacitor',
-    stock: 25,
-    minStock: 15,
-    location: 'Gaveta B4',
-    lastUsed: '2024-01-12',
-    status: 'available',
-    description: 'Capacitor eletrolítico 25V',
-  },
-  {
-    id: '5',
-    name: 'LED RGB',
-    category: 'LED',
-    stock: 8,
-    minStock: 5,
-    location: 'Gaveta A2',
-    lastUsed: '2024-01-14',
-    status: 'available',
-    description: 'LED RGB comum ânodo, 5mm',
-  },
-  {
-    id: '6',
-    name: 'Breadboard 830',
-    category: 'Ferramenta',
-    stock: 1,
-    minStock: 3,
-    location: 'Gaveta D1',
-    lastUsed: '2024-01-13',
-    status: 'low',
-    description: 'Protoboard 830 pontos com barra de alimentação',
-  },
-  {
-    id: '7',
-    name: 'ESP32 DevKit',
-    category: 'Microcontrolador',
-    stock: 2,
-    minStock: 3,
-    location: 'Gaveta A3',
-    lastUsed: '2024-01-16',
-    status: 'low',
-    description: 'Microcontrolador WiFi + Bluetooth, dual-core',
-  },
-  {
-    id: '8',
-    name: 'Motor DC 12V',
-    category: 'Motor',
-    stock: 5,
-    minStock: 2,
-    location: 'Gaveta E1',
-    lastUsed: '2024-01-11',
-    status: 'available',
-    description: 'Motor DC com redução, 100RPM',
-  },
-];
+import { API_BASE_URL } from '@/env';
 
-const categories = ['Todos', 'Resistor', 'Capacitor', 'Microcontrolador', 'Sensor', 'LED', 'Ferramenta', 'Motor'];
+// Estado inicial vazio
+const initialComponents: Component[] = [];
+
+const categories = ['Todos', 'Resistores', 'Capacitores', 'Microcontroladores', 'Sensores', 'LEDs', 'Ferramentas', 'Motores', 'Conectores', 'Baterias', 'Displays', 'ICs', 'Transistores', 'Indutores'];
+
+// Função para buscar componentes da API
+const fetchComponents = async (): Promise<Component[]> => {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const savedToken = await AsyncStorage.getItem('@LabPage:token');
+
+    const response = await fetch(`${API_BASE_URL}/api/components`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao buscar componentes');
+    }
+
+    const data = await response.json();
+    return data.map((item: any) => ({
+      id: item.id?.toString() || '',
+      partNumber: item.partNumber || '',
+      name: item.name || '',
+      description: item.description || '',
+      category: item.category || '',
+      subcategory: item.subcategory || '',
+      manufacturer: item.manufacturer || '',
+      packageType: item.packageType || '',
+      currentStock: item.currentStock || 0,
+      minimumStock: item.minimumStock || 0,
+      storageLocation: item.storageLocation || '',
+      status: item.status || 'active',
+      datasheet: item.datasheet || '',
+      rohs: item.rohs || false,
+      reach: item.reach || false,
+      createdAt: item.createdAt || '',
+      updatedAt: item.updatedAt || '',
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar componentes:', error);
+    throw error;
+  }
+};
 
 export default function ComponentsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const { user } = useAuth();
-  
+
+  const [components, setComponents] = useState<Component[]>(initialComponents);
+  const [filteredComponents, setFilteredComponents] = useState<Component[]>(initialComponents);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['Todos']);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredComponents, setFilteredComponents] = useState(mockComponents);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState(3);
 
-  // Filtrar componentes
+  // Carregar componentes ao montar o componente
   React.useEffect(() => {
-    let filtered = mockComponents;
-    
-    if (!selectedCategories.includes('Todos')) {
-      filtered = filtered.filter(comp => selectedCategories.includes(comp.category));
+    loadComponents();
+  }, []);
+
+  // Filtrar componentes quando os filtros mudam
+  React.useEffect(() => {
+    filterComponents();
+  }, [components, selectedCategories, searchQuery]);
+
+  const loadComponents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchComponents();
+      setComponents(data);
+    } catch (err) {
+      setError('Erro ao carregar componentes');
+      console.error('Erro ao carregar componentes:', err);
+      
+      // Definir valores padrão em caso de erro
+      setComponents([]);
+      setFilteredComponents([]);
+    } finally {
+      setLoading(false);
     }
-    
+  };
+
+  const filterComponents = () => {
+    let filtered = components;
+
+    if (!selectedCategories.includes('Todos')) {
+      filtered = filtered.filter(comp => {
+        if (!comp.category) return false;
+        return selectedCategories.includes(comp.category);
+      });
+    }
+
     if (searchQuery) {
-      filtered = filtered.filter(comp => 
-        comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        comp.description.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(comp =>
+        (comp.name && comp.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (comp.description && comp.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (comp.partNumber && comp.partNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (comp.manufacturer && comp.manufacturer.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
-    
+
     setFilteredComponents(filtered);
-  }, [selectedCategories, searchQuery]);
+  };
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadComponents();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const handleComponentPress = (component: Component) => {
     // Aqui você pode adicionar navegação para detalhes do componente
@@ -187,12 +197,19 @@ export default function ComponentsScreen() {
     router.push('/extra/componentes/component-form');
   };
 
-  const renderComponentCard = ({ item }: { item: Component }) => (
-    <ComponentCard 
-      component={item} 
-      onPress={() => handleComponentPress(item)}
-    />
-  );
+  const renderComponentCard = ({ item }: { item: Component }) => {
+    // Verificar se o componente tem dados válidos antes de renderizar
+    if (!item.id || !item.name) {
+      return null;
+    }
+    
+    return (
+      <ComponentCard 
+        component={item} 
+        onPress={() => handleComponentPress(item)}
+      />
+    );
+  };
 
   const renderCategoryChip = ({ item }: { item: string }) => (
     <TouchableOpacity
@@ -222,11 +239,17 @@ export default function ComponentsScreen() {
   );
 
   const getStats = () => {
-    const total = mockComponents.length;
-    const available = mockComponents.filter(c => c.status === 'available').length;
-    const low = mockComponents.filter(c => c.status === 'low').length;
-    const critical = mockComponents.filter(c => c.status === 'critical').length;
-    
+    const total = filteredComponents.length;
+    const available = filteredComponents.filter((component: Component) => component.status === 'active').length;
+    const low = filteredComponents.filter((component: Component) => {
+      if (component.currentStock === undefined || component.minimumStock === undefined) return false;
+      return component.currentStock <= component.minimumStock && component.currentStock > 0;
+    }).length;
+    const critical = filteredComponents.filter((component: Component) => {
+      if (component.currentStock === undefined) return false;
+      return component.currentStock === 0;
+    }).length;
+
     return { total, available, low, critical };
   };
 
@@ -256,7 +279,7 @@ export default function ComponentsScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/extra/profile')}>
             <View style={[styles.avatar, { backgroundColor: colors.accentPrimary }]}>
               <Text style={styles.avatarText}>
-                {user?.name?.charAt(0) || 'U'}
+                {user?.nome?.charAt(0) || 'U'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -317,14 +340,54 @@ export default function ComponentsScreen() {
         />
       </View>
 
+      {/* Loading/Error State */}
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Carregando componentes...
+          </Text>
+        </View>
+      )}
+
+      {error && !loading && (
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.accentPrimary }]}
+            onPress={loadComponents}
+          >
+            <Text style={styles.retryButtonText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Components List */}
-      <FlatList
-        data={filteredComponents}
-        renderItem={renderComponentCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.componentsList}
-        showsVerticalScrollIndicator={false}
-      />
+      {!loading && !error && (
+        <FlatList
+          data={filteredComponents.filter(comp => comp.id && comp.name)} // Filtrar componentes válidos
+          renderItem={renderComponentCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.componentsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.textSecondary}
+              colors={[colors.accentPrimary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                {components.length === 0 ? 'Nenhum componente cadastrado' : 'Nenhum componente encontrado com os filtros aplicados'}
+              </Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Floating Action Button */}
       <FloatingActionButton 
@@ -477,5 +540,44 @@ const styles = StyleSheet.create({
   componentsList: {
     paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  emptyText: {
+    fontSize: 16,
   },
 }); 

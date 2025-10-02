@@ -20,7 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 // API helper
-const API_BASE_URL = 'http://192.168.0.25:8080';
+import { API_BASE_URL } from '@/env';
 
 // Tipos
 interface ComponentForm {
@@ -28,6 +28,8 @@ interface ComponentForm {
   name: string;
   sku: string;
   manufacturer: string;
+  partNumber: string; // OBRIGATÓRIO - Part Number do fabricante
+  packageType: string; // OBRIGATÓRIO - Tipo de pacote (ex: 0603, SOIC, DIP)
   categories: string[]; // Mudança: agora é um array para múltiplas categorias
   subcategory: string;
   tags: string[];
@@ -124,11 +126,11 @@ const categories = [
 ];
 
 const subcategoriesByCategory: { [key: string]: string[] } = {
-  'Resistores': ['SMD/0603', 'SMD/0805', 'SMD/1206', 'Through-hole', 'Variável', 'Potenciômetro'],
-  'Capacitores': ['Cerâmico/MLCC', 'Eletrolítico', 'Tântalo', 'Film', 'SMD', 'Variable'],
-  'Transistores': ['MOSFET N-Channel', 'MOSFET P-Channel', 'BJT NPN', 'BJT PNP', 'IGBT'],
+  'Resistores': ['SMD/0603', 'SMD/0805', 'SMD/1206', 'Furo Passante', 'Variável', 'Potenciômetro'],
+  'Capacitores': ['Cerâmico/MLCC', 'Eletrolítico', 'Tântalo', 'Filme', 'SMD', 'Variável'],
+  'Transistores': ['MOSFET Canal-N', 'MOSFET Canal-P', 'BJT NPN', 'BJT PNP', 'IGBT'],
   'IC': ['MCU', 'Regulador', 'OpAmp', 'Comparador', 'Timer', 'Driver', 'Memory'],
-  'Conectores': ['JST', 'Molex', 'Header', 'Terminal Block', 'USB', 'RJ45'],
+  'Conectores': ['JST', 'Molex', 'Conector Macho', 'Bloco Terminal', 'USB', 'RJ45'],
   'Sensores': ['Temperatura', 'Umidade', 'Pressão', 'Movimento', 'Luz', 'Som'],
 };
 
@@ -138,8 +140,8 @@ const technicalParamTemplates: { [key: string]: any[] } = {
     { key: 'tolerance', label: 'Tolerância (%)', type: 'number', unit: '%', required: true },
     { key: 'power', label: 'Potência (W)', type: 'number', unit: 'W', required: true },
     { key: 'tcr', label: 'TCR (ppm/°C)', type: 'number', unit: 'ppm/°C' },
-    { key: 'package', label: 'Pacote', type: 'select', options: ['0402', '0603', '0805', '1206', 'Through-hole'] },
-    { key: 'technology', label: 'Tecnologia', type: 'select', options: ['Thick Film', 'Metal Film', 'Carbon Film'] }
+    { key: 'package', label: 'Pacote', type: 'select', options: ['0402', '0603', '0805', '1206', 'Furo Passante'] },
+    { key: 'technology', label: 'Tecnologia', type: 'select', options: ['Filme Espesso', 'Filme Metálico', 'Filme de Carbono'] }
   ],
   'Capacitores': [
     { key: 'capacitance', label: 'Capacitância (F)', type: 'number', unit: 'F', required: true },
@@ -169,12 +171,12 @@ const statusOptions = [
 ];
 
 const mslLevels = [
-  { value: '1', label: 'MSL 1 - Unlimited' },
-  { value: '2', label: 'MSL 2 - 1 Year' },
-  { value: '3', label: 'MSL 3 - 168 Hours' },
-  { value: '4', label: 'MSL 4 - 72 Hours' },
-  { value: '5', label: 'MSL 5 - 48 Hours' },
-  { value: '6', label: 'MSL 6 - 6 Hours' }
+  { value: '1', label: 'MSL 1 - Ilimitado' },
+  { value: '2', label: 'MSL 2 - 1 Ano' },
+  { value: '3', label: 'MSL 3 - 168 Horas' },
+  { value: '4', label: 'MSL 4 - 72 Horas' },
+  { value: '5', label: 'MSL 5 - 48 Horas' },
+  { value: '6', label: 'MSL 6 - 6 Horas' }
 ];
 
 export default function ComponentFormScreen() {
@@ -189,6 +191,8 @@ export default function ComponentFormScreen() {
     name: '',
     sku: '',
     manufacturer: '',
+    partNumber: '',
+    packageType: '',
     categories: [], // Mudança: inicializado como array vazio
     subcategory: '',
     tags: [],
@@ -250,6 +254,18 @@ export default function ComponentFormScreen() {
           Alert.alert('Erro', 'SKU é obrigatório');
           return false;
         }
+        if (!formData.manufacturer.trim()) {
+          Alert.alert('Erro', 'Fabricante é obrigatório');
+          return false;
+        }
+        if (!formData.partNumber.trim()) {
+          Alert.alert('Erro', 'Part Number é obrigatório');
+          return false;
+        }
+        if (!formData.packageType.trim()) {
+          Alert.alert('Erro', 'Tipo de Pacote é obrigatório');
+          return false;
+        }
         if (formData.categories.length === 0) {
           Alert.alert('Erro', 'Pelo menos uma categoria é obrigatória');
           return false;
@@ -302,6 +318,9 @@ export default function ComponentFormScreen() {
         name: formData.name,
         sku: formData.sku,
         manufacturer: formData.manufacturer,
+        partNumber: formData.partNumber,
+        packageType: formData.packageType,
+        category: formData.categories.length > 0 ? formData.categories[0] : '', // Backend espera singular
         categories: formData.categories,
         subcategory: formData.subcategory,
         tags: formData.tags,
@@ -341,7 +360,7 @@ export default function ComponentFormScreen() {
 
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
       const savedToken = await AsyncStorage.getItem('@LabPage:token');
-
+      console.log(savedToken);
       const res = await fetch(`${API_BASE_URL}/api/components`, {
         method: 'POST',
         headers: {
@@ -353,6 +372,7 @@ export default function ComponentFormScreen() {
 
       if (!res.ok) {
         const msg = await res.text();
+        console.log(msg);
         throw new Error(msg || 'Falha ao salvar componente');
       }
 
@@ -361,7 +381,11 @@ export default function ComponentFormScreen() {
         isEditMode ? 'As alterações foram salvas com sucesso.' : 'O componente foi criado e está disponível no sistema.',
         [{ text: 'OK', onPress: () => router.back() }]
       );
+      console.log(res);
+      console.log(payload);
+      console.log("componente criado com sucesso");
     } catch (error) {
+      console.log(error);
       Alert.alert('Erro', (error as any)?.message || 'Erro ao salvar componente. Tente novamente.');
     } finally {
       setLoading(false);
@@ -423,26 +447,50 @@ export default function ComponentFormScreen() {
             updateFormData('sku', generateSKU(text, formData.categories));
           }
         }}
-        placeholder="Ex: Resistor 10kΩ 1% 0603"
+        placeholder="Ex: Resistor 10kΩ 1% SMD, LED Vermelho 5mm"
       />
 
       <Input
-        label="Código Interno *"
+        label="Código Interno do Lab *"
         value={formData.sku}
         onChangeText={(text) => updateFormData('sku', text)}
-        placeholder="LAB-RES-10K-0603"
+        placeholder="Ex: LAB-RES-10K-SMD (gerado automaticamente)"
       />
 
-      <Input
-        label="Fabricante"
-        value={formData.manufacturer}
-        onChangeText={(text) => updateFormData('manufacturer', text)}
-        placeholder="Ex: Yageo, Vishay, STMicro"
-      />
+      {/* Campos Obrigatórios do Fabricante */}
+      <View style={styles.requiredSection}>
+        <Text style={[styles.requiredSectionTitle, { color: colors.textPrimary }]}>
+          🏭 Dados do Fabricante (Obrigatórios)
+        </Text>
+
+        <Input
+          label="Marca/Fabricante *"
+          value={formData.manufacturer}
+          onChangeText={(text) => updateFormData('manufacturer', text)}
+          placeholder="Ex: Yageo, Arduino, Texas Instruments"
+        />
+
+        <Input
+          label="Código do Fabricante *"
+          value={formData.partNumber}
+          onChangeText={(text) => updateFormData('partNumber', text)}
+          placeholder="Ex: RC0603FR-0710KL, ATMEGA328P-PU"
+        />
+
+        <Input
+          label="Formato/Tamanho *"
+          value={formData.packageType}
+          onChangeText={(text) => updateFormData('packageType', text)}
+          placeholder="Ex: SMD 0603, CILÍNDRICO 5mm, SOIC-8"
+        />
+      </View>
 
       <View style={styles.selectContainer}>
         <Text style={[styles.selectLabel, { color: colors.textPrimary }]}>
-          Categorias *
+          📂 Categoria Principal *
+        </Text>
+        <Text style={[styles.selectDescription, { color: colors.textSecondary }]}>
+          Escolha a categoria que melhor descreve seu componente
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.chipContainer}>
@@ -523,25 +571,25 @@ export default function ComponentFormScreen() {
       )}
 
       <Input
-        label="Tags"
+        label="Palavras-chave (Tags)"
         value={formData.tags.join(', ')}
         onChangeText={(text) => updateFormData('tags', text.split(',').map(s => s.trim()).filter(s => s))}
-        placeholder="Ex: 0603, 1%, SMD, 5V"
+        placeholder="Ex: resistor, 10k, SMD, baixo ruído"
       />
 
       <Input
-        label="Descrição Curta"
+        label="Descrição Resumida"
         value={formData.shortDescription}
         onChangeText={(text) => updateFormData('shortDescription', text)}
-        placeholder="Descrição para listas e cards"
+        placeholder="Breve descrição que aparece nas listas (máx. 100 caracteres)"
         maxLength={100}
       />
 
       <Input
-        label="Descrição Detalhada"
+        label="Descrição Completa"
         value={formData.detailedDescription}
         onChangeText={(text) => updateFormData('detailedDescription', text)}
-        placeholder="Descrição completa com especificações técnicas"
+        placeholder="Descrição técnica detalhada, características, aplicações..."
         multiline
         numberOfLines={4}
       />
@@ -551,7 +599,10 @@ export default function ComponentFormScreen() {
   const renderStep2 = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
-        2. Parâmetros Técnicos
+        🔧 2. Características Técnicas
+      </Text>
+      <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+        Configure os parâmetros específicos do seu componente baseado na categoria escolhida
       </Text>
       
       {formData.categories.length > 0 && formData.categories.some(cat => technicalParamTemplates[cat]) ? (
@@ -633,31 +684,35 @@ export default function ComponentFormScreen() {
   const renderStep3 = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
-        3. Estoque e Localização
+        📦 3. Controle de Estoque
+      </Text>
+      <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+        Defina quantidades e onde armazenar o componente
       </Text>
       
       <Input
-        label="Estoque Atual"
+        label="Quantidade Atual em Estoque"
         value={formData.currentStock.toString()}
         onChangeText={(text) => updateFormData('currentStock', parseInt(text) || 0)}
-        placeholder="Quantidade atual"
+        placeholder="Ex: 100 (unidades que você tem agora)"
         keyboardType="numeric"
         editable={!isEditMode} // Somente leitura em modo de edição
       />
 
       <Input
-        label="Estoque Mínimo *"
+        label="Estoque Mínimo (Alerta) *"
         value={formData.minStock.toString()}
         onChangeText={(text) => updateFormData('minStock', parseInt(text) || 0)}
-        placeholder="Quantidade mínima"
+        placeholder="Ex: 10 (quando chegar nisso, alerta)"
         keyboardType="numeric"
+        style={styles.requiredField}
       />
 
       <Input
         label="Estoque Máximo"
         value={formData.maxStock.toString()}
         onChangeText={(text) => updateFormData('maxStock', parseInt(text) || 0)}
-        placeholder="Quantidade máxima"
+        placeholder="Ex: 500 (quantidade máxima recomendada)"
         keyboardType="numeric"
       />
 
@@ -665,23 +720,25 @@ export default function ComponentFormScreen() {
         label="Ponto de Reposição *"
         value={formData.reorderPoint.toString()}
         onChangeText={(text) => updateFormData('reorderPoint', parseInt(text) || 0)}
-        placeholder="Quando reabastecer"
+        placeholder="Ex: 20 (quando atingir, comprar mais)"
         keyboardType="numeric"
+        style={styles.requiredField}
       />
 
       <Input
-        label="Lote Econômico (EOQ)"
+        label="Quantidade Ideal de Compra (EOQ)"
         value={formData.eoq.toString()}
         onChangeText={(text) => updateFormData('eoq', parseInt(text) || 0)}
-        placeholder="Quantidade ideal de compra"
+        placeholder="Ex: 100 (quantidade ótima para comprar)"
         keyboardType="numeric"
       />
 
       <Input
-        label="Localização *"
+        label="Onde Está Guardado *"
         value={formData.location}
         onChangeText={(text) => updateFormData('location', text)}
-        placeholder="Ex: Prédio A / Lab 1 / Estante B / Gaveta 3"
+        placeholder="Ex: Prédio A / Lab Eletrônica / Estante 2 / Gaveta B"
+        style={styles.requiredField}
       />
 
       <View style={styles.multiLocationSection}>
@@ -765,17 +822,20 @@ export default function ComponentFormScreen() {
   const renderStep5 = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
-        5. Conformidade e Arquivos
+        📋 5. Certificações e Documentação
+      </Text>
+      <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+        Informe certificações ambientais e documentação técnica
       </Text>
       
       <View style={styles.complianceSection}>
         <View style={styles.switchItem}>
           <View style={styles.switchContent}>
             <Text style={[styles.switchLabel, { color: colors.textPrimary }]}>
-              RoHS Compliant
+              ✅ Sem Chumbo (RoHS)
             </Text>
             <Text style={[styles.switchSubtext, { color: colors.textSecondary }]}>
-              Restriction of Hazardous Substances
+              Não contém substâncias tóxicas (chumbo, mercúrio, etc.)
             </Text>
           </View>
           <Switch
@@ -789,10 +849,10 @@ export default function ComponentFormScreen() {
         <View style={styles.switchItem}>
           <View style={styles.switchContent}>
             <Text style={[styles.switchLabel, { color: colors.textPrimary }]}>
-              REACH Compliant
+              ✅ Sem Químicos Prejudiciais (REACH)
             </Text>
             <Text style={[styles.switchSubtext, { color: colors.textSecondary }]}>
-              Registration, Evaluation, Authorization of Chemicals
+              Atende regulamentação europeia de substâncias químicas
             </Text>
           </View>
           <Switch
@@ -802,11 +862,14 @@ export default function ComponentFormScreen() {
             thumbColor={formData.reach ? colors.accentPrimary : colors.textSecondary}
           />
         </View>
+        <Text style={[styles.switchSubtext, { color: colors.textSecondary }]}>
+          Essas conformidades indicam restrições de substâncias e químicas. Marque se o componente cumpre os requisitos.
+        </Text>
       </View>
 
       <View style={styles.selectContainer}>
         <Text style={[styles.selectLabel, { color: colors.textPrimary }]}>
-          MSL (Moisture Sensitivity Level)
+          MSL (Nível de Sensibilidade à Umidade)
         </Text>
         {mslLevels.map((msl) => (
           <TouchableOpacity
@@ -835,6 +898,7 @@ export default function ComponentFormScreen() {
             </Text>
           </TouchableOpacity>
         ))}
+        <Text style={[styles.switchSubtext, { color: colors.textSecondary }]}>Nível de sensibilidade à umidade (1 = menor sensibilidade, 6 = maior). Use a especificação do fabricante.</Text>
       </View>
 
       <Input
@@ -843,6 +907,7 @@ export default function ComponentFormScreen() {
         onChangeText={(text) => updateFormData('esdLevel', text)}
         placeholder="Ex: Classe 1, 2, 3"
       />
+      <Text style={[styles.switchSubtext, { color: colors.textSecondary }]}>Classe de proteção contra descargas eletrostáticas (ESD) recomendada.</Text>
 
       <View style={styles.temperatureSection}>
         <Text style={[styles.sectionSubtitle, { color: colors.textPrimary }]}>
@@ -864,15 +929,27 @@ export default function ComponentFormScreen() {
             style={styles.halfInput}
           />
         </View>
+        <Text style={[styles.switchSubtext, { color: colors.textSecondary }]}>Informe o intervalo seguro de operação do componente.</Text>
+        {formData.tempMin >= formData.tempMax && (
+          <Text style={{ color: colors.error, marginTop: 8 }}>
+            O valor mínimo deve ser menor que o valor máximo.
+          </Text>
+        )}
       </View>
 
       <Input
-        label="Datasheet (URL)"
+        label={formData.categories.some(cat => cat === 'IC') ? "Datasheet (URL) *" : "Datasheet (URL)"}
         value={formData.datasheet}
         onChangeText={(text) => updateFormData('datasheet', text)}
         placeholder="https://..."
         keyboardType="url"
+        style={formData.categories.some(cat => cat === 'IC') ? styles.requiredField : undefined}
       />
+      <Text style={[styles.switchSubtext, { color: colors.textSecondary }]}>
+        {formData.categories.some(cat => cat === 'IC')
+          ? "Obrigatório para ICs"
+          : "Recomendado para outros componentes"}
+      </Text>
 
       <View style={styles.filesSection}>
         <Text style={[styles.sectionSubtitle, { color: colors.textPrimary }]}>
@@ -884,6 +961,7 @@ export default function ComponentFormScreen() {
           size="small"
           onPress={() => Alert.alert('Adicionar Documento', 'Funcionalidade em desenvolvimento')}
         />
+        <Text style={[styles.switchSubtext, { color: colors.textSecondary, marginTop: 8 }]}>Opcional: links ou arquivos com exemplos de uso do componente.</Text>
       </View>
     </View>
   );
@@ -1018,12 +1096,18 @@ export default function ComponentFormScreen() {
   const renderStep8 = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.stepTitle, { color: colors.textPrimary }]}>
-        8. Estado e Finalização
+        🎯 8. Finalizar Cadastro
+      </Text>
+      <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
+        Defina o status inicial e revise as informações antes de salvar
       </Text>
       
       <View style={styles.selectContainer}>
         <Text style={[styles.selectLabel, { color: colors.textPrimary }]}>
-          Status do Componente
+          📊 Situação do Componente
+        </Text>
+        <Text style={[styles.selectDescription, { color: colors.textSecondary }]}>
+          Escolha o estado atual do componente no laboratório
         </Text>
         {statusOptions.map((status) => (
           <TouchableOpacity
@@ -1059,10 +1143,10 @@ export default function ComponentFormScreen() {
 
       {formData.status !== 'active' && (
         <Input
-          label="Motivo/Observação"
+          label="Motivo da Situação"
           value={formData.statusReason}
           onChangeText={(text) => updateFormData('statusReason', text)}
-          placeholder="Razão para o status atual"
+          placeholder="Explique por que o componente não está ativo"
           multiline
           numberOfLines={3}
         />
@@ -1070,23 +1154,54 @@ export default function ComponentFormScreen() {
 
       <View style={styles.summarySection}>
         <Text style={[styles.sectionSubtitle, { color: colors.textPrimary }]}>
-          Resumo do Componente
+          📋 Revisão Final
         </Text>
+        <Text style={[styles.selectDescription, { color: colors.textSecondary }]}>
+          Confirme se todas as informações estão corretas antes de salvar
+        </Text>
+
+        {/* Campos Obrigatórios Pendentes */}
+        {(() => {
+          const requiredFields = [];
+          if (!formData.name.trim()) requiredFields.push('Nome do Componente');
+          if (!formData.sku.trim()) requiredFields.push('Código Interno');
+          if (!formData.manufacturer.trim()) requiredFields.push('Fabricante');
+          if (!formData.partNumber.trim()) requiredFields.push('Part Number');
+          if (!formData.packageType.trim()) requiredFields.push('Tipo de Pacote');
+          if (formData.categories.length === 0) requiredFields.push('Categorias');
+          if (formData.minStock < 0) requiredFields.push('Estoque Mínimo');
+          if (formData.reorderPoint < 0) requiredFields.push('Ponto de Reposição');
+          if (!formData.location.trim()) requiredFields.push('Localização');
+          if (formData.categories.some(cat => cat === 'IC') && !formData.datasheet.trim()) requiredFields.push('Datasheet');
+
+          return requiredFields.length > 0 ? (
+            <View style={[styles.requiredAlert, { backgroundColor: colors.error + '10', borderColor: colors.error }]}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
+              <Text style={[styles.requiredAlertText, { color: colors.error }]}>
+                ⚠️ Complete estes campos obrigatórios: {requiredFields.join(', ')}
+              </Text>
+            </View>
+          ) : null;
+        })()}
+
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
-            <Text style={styles.summaryLabel}>Nome: </Text>{formData.name || 'Não informado'}
+            <Text style={styles.summaryLabel}>📦 Nome: </Text>{formData.name || 'Não informado'}
           </Text>
           <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
-            <Text style={styles.summaryLabel}>SKU: </Text>{formData.sku || 'Não informado'}
+            <Text style={styles.summaryLabel}>🏷️ Código Lab: </Text>{formData.sku || 'Não informado'}
           </Text>
           <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
-            <Text style={styles.summaryLabel}>Categorias: </Text>{formData.categories.length > 0 ? formData.categories.join(', ') : 'Não informado'}
+            <Text style={styles.summaryLabel}>🏭 Fabricante: </Text>{formData.manufacturer || 'Não informado'}
           </Text>
           <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
-            <Text style={styles.summaryLabel}>Estoque Mín: </Text>{formData.minStock}
+            <Text style={styles.summaryLabel}>📂 Categorias: </Text>{formData.categories.length > 0 ? formData.categories.join(', ') : 'Não informado'}
           </Text>
           <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
-            <Text style={styles.summaryLabel}>Localização: </Text>{formData.location || 'Não informado'}
+            <Text style={styles.summaryLabel}>📦 Estoque Mín: </Text>{formData.minStock}
+          </Text>
+          <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
+            <Text style={styles.summaryLabel}>📍 Onde guardar: </Text>{formData.location || 'Não informado'}
           </Text>
         </View>
       </View>
@@ -1236,7 +1351,36 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  stepDescription: {
+    fontSize: 14,
     marginBottom: 20,
+    lineHeight: 20,
+  },
+  requiredSection: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.dark.accentPrimary,
+    backgroundColor: Colors.dark.accentPrimary + '08',
+  },
+  requiredSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  requiredField: {
+    borderColor: Colors.dark.accentPrimary,
+    borderWidth: 2,
+  },
+  helperText: {
+    fontSize: 11,
+    color: Colors.dark.textSecondary,
+    marginTop: 4,
+    lineHeight: 14,
   },
   selectContainer: {
     marginBottom: 20,
@@ -1244,7 +1388,13 @@ const styles = StyleSheet.create({
   selectLabel: {
     fontSize: 14,
     fontWeight: '600',
+    marginBottom: 8,
+  },
+  selectDescription: {
+    fontSize: 12,
+    marginTop: -4,
     marginBottom: 12,
+    lineHeight: 16,
   },
   chipContainer: {
     flexDirection: 'row',
@@ -1413,6 +1563,20 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontWeight: '600',
+  },
+  requiredAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 8,
+  },
+  requiredAlertText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
   },
   navigation: {
     flexDirection: 'row',

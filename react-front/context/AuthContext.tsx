@@ -33,7 +33,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const API_BASE_URL = 'http://192.168.0.25:8080';
+import { API_BASE_URL } from '@/env';
 const STORAGE_KEYS = {
   user: '@LabPage:user',
   token: '@LabPage:token',

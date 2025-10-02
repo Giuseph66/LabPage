@@ -12,6 +12,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -20,157 +21,227 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Tipos de projetos
+// Tipos de projetos (ajustados para dados reais da API)
 interface Project {
   id: string;
   name: string;
-  status: 'active' | 'completed' | 'paused' | 'planning';
+  code: string;
+  shortDescription: string;
+  categories: string[];
+  visibility: 'private' | 'lab' | 'public';
+  responsible: string;
+  plannedStart: string;
+  plannedEnd: string;
+  phase: 'ideation' | 'planning' | 'prototype' | 'testing' | 'pilot' | 'production' | 'completed';
   progress: number;
-  members: number;
-  dueDate: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  laboratories: string[];
+  policiesAccepted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  status: string;
   category: string;
   description: string;
+  members: number;
   materials: number;
   budget: number;
+  dueDate: string;
 }
 
-// Dados mockados para demonstração
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'Sistema de Irrigação Automática',
-    status: 'active',
-    progress: 75,
-    members: 4,
-    dueDate: '2024-02-15',
-    category: 'IoT',
-    description: 'Sistema automatizado para controle de irrigação com sensores de umidade',
-    materials: 12,
-    budget: 2500,
-  },
-  {
-    id: '2',
-    name: 'Robô Seguidor de Linha',
-    status: 'completed',
-    progress: 100,
-    members: 3,
-    dueDate: '2024-01-20',
-    category: 'Robótica',
-    description: 'Robô autônomo com sensores infravermelhos para competição',
-    materials: 8,
-    budget: 1800,
-  },
-  {
-    id: '3',
-    name: 'Estação Meteorológica',
-    status: 'paused',
-    progress: 45,
-    members: 2,
-    dueDate: '2024-03-10',
-    category: 'IoT',
-    description: 'Estação completa com sensores de temperatura, umidade e pressão',
-    materials: 15,
-    budget: 3200,
-  },
-  {
-    id: '4',
-    name: 'Braço Robótico 3D',
-    status: 'planning',
-    progress: 0,
-    members: 5,
-    dueDate: '2024-04-30',
-    category: 'Robótica',
-    description: 'Braço robótico com 6 graus de liberdade controlado por Arduino',
-    materials: 20,
-    budget: 4500,
-  },
-  {
-    id: '5',
-    name: 'Sistema de Segurança',
-    status: 'active',
-    progress: 60,
-    members: 3,
-    dueDate: '2024-02-28',
-    category: 'IoT',
-    description: 'Sistema de monitoramento com câmeras e sensores de movimento',
-    materials: 10,
-    budget: 2800,
-  },
-];
+import { API_BASE_URL } from '@/env';
 
-const categories = ['Todos', 'IoT', 'Robótica', 'Automação', 'Sensores'];
-const statusOptions = ['Todos', 'Ativo', 'Concluído', 'Pausado', 'Planejamento'];
+// Estado inicial vazio
+const initialProjects: Project[] = [];
+
+const categories = ['Todos', 'IoT', 'Robótica', 'Automação', 'Sensores', 'Eletrônica', 'Software', 'Mecatrônica', 'Telecomunicações', 'Energia'];
+const statusOptions = ['Todos', 'Ideação', 'Planejamento', 'Protótipo', 'Testes', 'Piloto', 'Produção', 'Concluído'];
+
+// Função para buscar projetos da API
+const fetchProjects = async (): Promise<Project[]> => {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const savedToken = await AsyncStorage.getItem('@LabPage:token');
+
+    const response = await fetch(`${API_BASE_URL}/api/projects`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao buscar projetos');
+    }
+
+    const data = await response.json();
+    return data.map((item: any) => ({
+      id: item.id?.toString() || '',
+      name: item.data?.name || item.name || '',
+      code: item.data?.code || item.code || '',
+      shortDescription: item.data?.shortDescription || item.shortDescription || '',
+      categories: item.data?.categories || item.categories || [],
+      visibility: item.data?.visibility || item.visibility || 'private',
+      responsible: item.data?.responsible || item.responsible || '',
+      plannedStart: item.data?.plannedStart || item.plannedStart || '',
+      plannedEnd: item.data?.plannedEnd || item.plannedEnd || '',
+      phase: item.data?.phase || item.phase || 'ideation',
+      progress: item.data?.progress || item.progress || 0,
+      priority: item.data?.priority || item.priority || 'medium',
+      laboratories: item.data?.laboratories || item.laboratories || [],
+      policiesAccepted: item.data?.policiesAccepted || item.policiesAccepted || false,
+      createdAt: item.createdAt || '',
+      updatedAt: item.updatedAt || '',
+      // Campos adicionais para compatibilidade
+      status: item.data?.phase || item.phase || 'ideation',
+      category: item.data?.categories?.[0] || item.categories?.[0] || '',
+      description: item.data?.shortDescription || item.shortDescription || '',
+      members: 0, // Campo não disponível na API
+      materials: 0, // Campo não disponível na API
+      budget: 0, // Campo não disponível na API
+      dueDate: item.data?.plannedEnd || item.plannedEnd || '',
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar projetos:', error);
+    throw error;
+  }
+};
 
 export default function ProjectsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const { user } = useAuth();
-  
+
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>(initialProjects);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedStatus, setSelectedStatus] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredProjects, setFilteredProjects] = useState(mockProjects);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState(3);
-  
+
   // Estados para os comboboxes
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
 
-  // Filtrar projetos
+  // Carregar projetos ao montar o componente
   React.useEffect(() => {
-    let filtered = mockProjects;
-    
+    loadProjects();
+  }, []);
+
+  // Filtrar projetos quando os filtros mudam
+  React.useEffect(() => {
+    filterProjects();
+  }, [projects, selectedCategory, selectedStatus, searchQuery]);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchProjects();
+      setProjects(data);
+    } catch (err) {
+      setError('Erro ao carregar projetos');
+      console.error('Erro ao carregar projetos:', err);
+      
+      // Definir valores padrão em caso de erro
+      setProjects([]);
+      setFilteredProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterProjects = () => {
+    let filtered = projects;
+
+    // Filtro por categoria
     if (selectedCategory !== 'Todos') {
-      filtered = filtered.filter(project => project.category === selectedCategory);
+      filtered = filtered.filter(project => {
+        if (!project.categories || project.categories.length === 0) return false;
+        return project.categories.includes(selectedCategory);
+      });
     }
-    
+
+    // Filtro por status/fase
     if (selectedStatus !== 'Todos') {
-      const statusMap = {
-        'Ativo': 'active',
-        'Concluído': 'completed',
-        'Pausado': 'paused',
-        'Planejamento': 'planning'
-      };
-      const statusValue = statusMap[selectedStatus as keyof typeof statusMap];
-      filtered = filtered.filter(project => project.status === statusValue);
+      filtered = filtered.filter(project => {
+        const projectPhase = project.phase || project.status;
+        if (!projectPhase) return false;
+        
+        // Mapear status em português para fase em inglês
+        const statusMap: { [key: string]: string } = {
+          'Ideação': 'ideation',
+          'Planejamento': 'planning',
+          'Protótipo': 'prototype',
+          'Testes': 'testing',
+          'Piloto': 'pilot',
+          'Produção': 'production',
+          'Concluído': 'completed'
+        };
+        
+        return projectPhase === statusMap[selectedStatus];
+      });
     }
-    
+
+    // Filtro por busca
     if (searchQuery) {
-      filtered = filtered.filter(project => 
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(project =>
+        (project.name && project.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (project.shortDescription && project.shortDescription.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (project.code && project.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (project.responsible && project.responsible.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
-    
+
     setFilteredProjects(filtered);
-  }, [selectedCategory, selectedStatus, searchQuery]);
+  };
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadProjects();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return colors.success;
-      case 'completed': return colors.accentPrimary;
-      case 'paused': return colors.warning;
-      case 'planning': return colors.textSecondary;
+      case 'ideation': return '#8B5CF6'; // Roxo
+      case 'planning': return '#3B82F6'; // Azul
+      case 'prototype': return '#F97316'; // Laranja
+      case 'testing': return '#F59E0B'; // Amarelo
+      case 'pilot': return '#10B981'; // Verde escuro
+      case 'production': return '#059669'; // Verde mais escuro
+      case 'completed': return '#22C55E'; // Verde
       default: return colors.textSecondary;
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'active': return 'Ativo';
-      case 'completed': return 'Concluído';
-      case 'paused': return 'Pausado';
+      case 'ideation': return 'Ideação';
       case 'planning': return 'Planejamento';
+      case 'prototype': return 'Protótipo';
+      case 'testing': return 'Testes';
+      case 'pilot': return 'Piloto';
+      case 'production': return 'Produção';
+      case 'completed': return 'Concluído';
       default: return 'Desconhecido';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active': return '▶';
-      case 'completed': return '✓';
-      case 'paused': return '⏸';
+      case 'ideation': return '💡';
       case 'planning': return '📋';
+      case 'prototype': return '🔧';
+      case 'testing': return '🧪';
+      case 'pilot': return '✈️';
+      case 'production': return '🏭';
+      case 'completed': return '✅';
       default: return '?';
     }
   };
@@ -183,76 +254,104 @@ export default function ProjectsScreen() {
     router.push('/extra/project/project-form');
   };
 
-  const renderProjectCard = ({ item }: { item: Project }) => (
-    <TouchableOpacity 
-      style={[styles.projectCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      onPress={() => handleProjectPress(item)}
-      activeOpacity={0.8}
-    >
-      {/* Header */}
-      <View style={styles.cardHeader}>
-        <View style={styles.titleContainer}>
-          <ThemedText style={styles.projectTitle}>{item.name}</ThemedText>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-            <Text style={styles.statusIcon}>{getStatusIcon(item.status)}</Text>
-            <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+  const renderProjectCard = ({ item }: { item: Project }) => {
+    // Verificar se o projeto tem dados válidos antes de renderizar
+    if (!item.id || !item.name) {
+      return null;
+    }
+
+    const formatDate = (dateString: string) => {
+      if (!dateString) return 'N/A';
+      try {
+        return new Date(dateString).toLocaleDateString('pt-BR');
+      } catch {
+        return 'N/A';
+      }
+    };
+
+    return (
+      <TouchableOpacity 
+        style={[styles.projectCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => handleProjectPress(item)}
+        activeOpacity={0.8}
+      >
+        {/* Header */}
+        <View style={styles.cardHeader}>
+          <View style={styles.titleContainer}>
+            <ThemedText style={styles.projectTitle}>{item.name || 'Nome não disponível'}</ThemedText>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.phase || item.status) }]}>
+              <Text style={styles.statusIcon}>{getStatusIcon(item.phase || item.status)}</Text>
+              <Text style={styles.statusText}>{getStatusText(item.phase || item.status)}</Text>
+            </View>
+          </View>
+          <Text style={[styles.categoryTag, { color: colors.accentSecondary }]}>
+            {item.categories?.[0] || item.category || 'Sem categoria'}
+          </Text>
+        </View>
+
+        {/* Description */}
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
+          {item.shortDescription || item.description || 'Sem descrição disponível'}
+        </Text>
+
+        {/* Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressHeader}>
+            <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Progresso</Text>
+            <Text style={[styles.progressValue, { color: colors.textPrimary }]}>
+              {item.progress || 0}%
+            </Text>
+          </View>
+          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { 
+                  backgroundColor: getStatusColor(item.phase || item.status),
+                  width: `${item.progress || 0}%`
+                }
+              ]} 
+            />
           </View>
         </View>
-        <Text style={[styles.categoryTag, { color: colors.accentSecondary }]}>{item.category}</Text>
-      </View>
 
-      {/* Description */}
-      <Text style={[styles.description, { color: colors.textSecondary }]}>{item.description}</Text>
-
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressHeader}>
-          <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Progresso</Text>
-          <Text style={[styles.progressValue, { color: colors.textPrimary }]}>{item.progress}%</Text>
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              {item.responsible || 'N/A'}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Responsável</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              {formatDate(item.plannedStart)}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Início</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              {formatDate(item.plannedEnd)}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Prazo</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              {item.laboratories?.length || 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Laboratórios</Text>
+          </View>
         </View>
-        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { 
-                backgroundColor: getStatusColor(item.status),
-                width: `${item.progress}%`
-              }
-            ]} 
-          />
-        </View>
-      </View>
-
-      {/* Stats Grid */}
-      <View style={styles.statsGrid}>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.members}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Membros</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.materials}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Materiais</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>R$ {item.budget}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Orçamento</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>
-            {new Date(item.dueDate).toLocaleDateString('pt-BR')}
-          </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Prazo</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const getStats = () => {
-    const total = mockProjects.length;
-    const active = mockProjects.filter(p => p.status === 'active').length;
-    const completed = mockProjects.filter(p => p.status === 'completed').length;
-    const totalBudget = mockProjects.reduce((sum, p) => sum + p.budget, 0);
-    
+    const total = filteredProjects.length;
+    const active = filteredProjects.filter(p => p.phase === 'planning' || p.phase === 'prototype' || p.phase === 'testing' || p.phase === 'pilot' || p.phase === 'production').length;
+    const completed = filteredProjects.filter(p => p.phase === 'completed').length;
+    const totalBudget = filteredProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
+
     return { total, active, completed, totalBudget };
   };
 
@@ -282,7 +381,7 @@ export default function ProjectsScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/extra/profile')}>
             <View style={[styles.avatar, { backgroundColor: colors.accentPrimary }]}>
               <Text style={styles.avatarText}>
-                {user?.name?.charAt(0) || 'U'}
+                {user?.nome?.charAt(0) || 'U'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -343,14 +442,54 @@ export default function ProjectsScreen() {
         </View>
       </View>
 
+      {/* Loading/Error State */}
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Carregando projetos...
+          </Text>
+        </View>
+      )}
+
+      {error && !loading && (
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.accentPrimary }]}
+            onPress={loadProjects}
+          >
+            <Text style={styles.retryButtonText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Projects List */}
-      <FlatList
-        data={filteredProjects}
-        renderItem={renderProjectCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.projectsList}
-        showsVerticalScrollIndicator={false}
-      />
+      {!loading && !error && (
+        <FlatList
+          data={filteredProjects}
+          renderItem={renderProjectCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.projectsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.textSecondary}
+              colors={[colors.accentPrimary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                Nenhum projeto encontrado
+              </Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Floating Action Button */}
       <FloatingActionButton 
@@ -700,5 +839,44 @@ const styles = StyleSheet.create({
   modalItemText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  emptyText: {
+    fontSize: 16,
   },
 }); 

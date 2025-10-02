@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { API_BASE_URL } from "@/env";
 
 interface Stats {
   totalUsers: number;
@@ -65,20 +66,73 @@ export default function StatsScreen() {
     try {
       setLoading(true);
       
-      // Simulando dados por enquanto
-      // Você pode substituir por chamadas reais à API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Buscar dados reais das APIs
+      const [usersResponse, projectsResponse, reservationsResponse, componentsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/users`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/projects`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/reservations`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch(`${API_BASE_URL}/api/components`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+      ]);
+
+      const [users, projects, reservations, components] = await Promise.all([
+        usersResponse.ok ? usersResponse.json() : [],
+        projectsResponse.ok ? projectsResponse.json() : [],
+        reservationsResponse.ok ? reservationsResponse.json() : [],
+        componentsResponse.ok ? componentsResponse.json() : [],
+      ]);
+
+      // Calcular estatísticas
+      const totalUsers = users.length;
+      const totalProjects = projects.length;
+      const totalReservations = reservations.length;
+      const totalComponents = components.length;
       
+      // Usuários ativos (com login recente - últimos 7 dias)
+      const activeUsers = users.filter((user: any) => {
+        if (!user.lastLogin) return false;
+        const lastLogin = new Date(user.lastLogin);
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        return lastLogin > sevenDaysAgo;
+      }).length;
+
+      // Reservas pendentes (status pending)
+      const pendingReservations = reservations.filter((reservation: any) => {
+        const status = reservation.data?.status || reservation.status;
+        return status === 'pending';
+      }).length;
+
       setStats({
-        totalUsers: 42,
-        totalProjects: 18,
-        totalReservations: 156,
-        totalComponents: 87,
-        activeUsers: 12,
-        pendingReservations: 5,
+        totalUsers,
+        totalProjects,
+        totalReservations,
+        totalComponents,
+        activeUsers,
+        pendingReservations,
       });
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
+      Alert.alert('Erro', 'Não foi possível carregar as estatísticas');
     } finally {
       setLoading(false);
     }
@@ -120,6 +174,7 @@ export default function StatsScreen() {
       title: "Exportar Relatório",
       icon: "download-outline" as const,
       color: colors.accentPrimary,
+      onPress: () => Alert.alert("Exportar", "Funcionalidade em desenvolvimento"),
     },
     {
       title: "Atualizar Dados",
@@ -131,6 +186,7 @@ export default function StatsScreen() {
       title: "Configurar Alertas",
       icon: "notifications-outline" as const,
       color: "#F59E0B",
+      onPress: () => Alert.alert("Alertas", "Funcionalidade em desenvolvimento"),
     },
   ];
 
@@ -225,10 +281,10 @@ export default function StatsScreen() {
           <Ionicons name="information-circle-outline" size={24} color={colors.accentPrimary} />
           <View style={styles.infoContent}>
             <Text style={[styles.infoTitle, { color: colors.text }]}>
-              Dados Atualizados
+              Dados em Tempo Real
             </Text>
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              As estatísticas são atualizadas automaticamente a cada 5 minutos
+              Estatísticas atualizadas diretamente do banco de dados
             </Text>
           </View>
         </View>

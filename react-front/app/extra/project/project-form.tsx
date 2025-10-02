@@ -22,7 +22,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 // API helper
-const API_BASE_URL = 'http://192.168.0.25:8080';
+import { API_BASE_URL } from '@/env';
 
 // Tipos
 interface ProjectForm {
@@ -173,7 +173,7 @@ export default function ProjectFormScreen() {
     categories: [],
     tags: [],
     visibility: 'private',
-    responsible: user?.name || '',
+    responsible: user?.nome || '',
     advisor: '',
     members: [],
     externalPartners: '',
@@ -200,6 +200,7 @@ export default function ProjectFormScreen() {
     licenses: [],
     policiesAccepted: false,
   });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const totalSteps = 8;
 
@@ -218,39 +219,42 @@ export default function ProjectFormScreen() {
   };
 
   const validateStep = (step: number): boolean => {
+    const newErrors: { [key: string]: string } = {};
+    let ok = true;
     switch (step) {
       case 1:
         if (!formData.name.trim() || formData.name.length < 3 || formData.name.length > 100) {
-          Alert.alert('Erro', 'Nome do projeto deve ter entre 3 e 100 caracteres');
-          return false;
+          newErrors.name = '3 a 100 caracteres';
+          ok = false;
         }
         if (!formData.shortDescription.trim() || formData.shortDescription.length > 160) {
-          Alert.alert('Erro', 'Descrição curta é obrigatória e deve ter até 160 caracteres');
-          return false;
+          newErrors.shortDescription = 'Obrigatória (até 160 caracteres)';
+          ok = false;
         }
         if (formData.categories.length === 0) {
-          Alert.alert('Erro', 'Pelo menos uma categoria é obrigatória');
-          return false;
+          newErrors.categories = 'Selecione pelo menos uma categoria';
+          ok = false;
         }
-        return true;
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return ok;
       
       case 2:
         if (!formData.responsible.trim()) {
-          Alert.alert('Erro', 'Responsável é obrigatório');
+          setErrors(prev => ({ ...prev, responsible: 'Obrigatório' }));
           return false;
         }
         return true;
       
       case 3:
         if (!formData.plannedStart || !formData.plannedEnd) {
-          Alert.alert('Erro', 'Datas de início e término são obrigatórias');
+          setErrors(prev => ({ ...prev, plannedStart: !formData.plannedStart ? 'Obrigatório' : '', plannedEnd: !formData.plannedEnd ? 'Obrigatório' : '' }));
           return false;
         }
         // Validar se a data de término é posterior à data de início
         const startDate = new Date(formData.plannedStart);
         const endDate = new Date(formData.plannedEnd);
         if (endDate <= startDate) {
-          Alert.alert('Erro', 'Data de término deve ser posterior à data de início');
+          setErrors(prev => ({ ...prev, plannedEnd: 'Deve ser após a data de início' }));
           return false;
         }
         return true;
@@ -415,6 +419,7 @@ export default function ProjectFormScreen() {
         }}
         placeholder="Digite o nome do projeto"
         maxLength={100}
+        error={errors.name}
       />
 
       <Input
@@ -432,6 +437,7 @@ export default function ProjectFormScreen() {
         maxLength={160}
         multiline
         numberOfLines={3}
+        error={errors.shortDescription}
       />
 
       <Input
@@ -482,6 +488,9 @@ export default function ProjectFormScreen() {
             Selecionadas: {formData.categories.join(', ')}
           </Text>
         )}
+        {!!errors.categories && (
+          <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{errors.categories}</Text>
+        )}
       </View>
 
       <View style={styles.selectContainer}>
@@ -530,6 +539,7 @@ export default function ProjectFormScreen() {
         value={formData.responsible}
         onChangeText={(text) => updateFormData('responsible', text)}
         placeholder="Nome do responsável pelo projeto"
+        error={errors.responsible}
       />
 
       <Input
@@ -574,6 +584,7 @@ export default function ProjectFormScreen() {
           value={formData.plannedStart}
           onChange={(dateStr) => updateFormData('plannedStart', dateStr)}
           placeholder="Selecionar data"
+          error={errors.plannedStart}
         />
 
         <DateInput
@@ -581,6 +592,7 @@ export default function ProjectFormScreen() {
           value={formData.plannedEnd}
           onChange={(dateStr) => updateFormData('plannedEnd', dateStr)}
           placeholder="Selecionar data"
+          error={errors.plannedEnd}
         />
       </View>
 

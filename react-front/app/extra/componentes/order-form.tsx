@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
-import { ComponentSelector } from '@/components/ui/ComponentSelector';
+import { ComponentPicker } from '@/components/ui/ComponentPicker';
 import { DateInput } from '@/components/ui/DateInput';
 import { Input } from '@/components/ui/Input';
 import { Colors } from '@/constants/Colors';
@@ -22,7 +22,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 // API helper
-const API_BASE_URL = 'http://192.168.0.25:8080';
+import { API_BASE_URL } from '@/env';
 
 // Tipos
 interface OrderForm {
@@ -122,48 +122,42 @@ interface Approval {
   date?: string;
 }
 
-// Dados mockados
-const mockComponents = [
-  {
-    id: '1',
-    name: 'Resistor 220Ω 1/4W',
-    sku: 'RES-220-1/4W',
-    description: 'Resistor de carbono 220 ohms 1/4 watt',
-    category: 'Resistores',
-    unit: 'un',
-    inStock: 150,
-    unitPrice: 0.15,
-    preferredSupplier: 'Mouser Electronics',
-    leadTime: 7,
-    link_compra: 'https://www.mouser.com/ProductDetail/220-1/4W',
-  },
-  {
-    id: '2',
-    name: 'LED RGB 5mm',
-    sku: 'LED-RGB-5MM',
-    description: 'LED RGB 5mm com 4 pinos',
-    category: 'LEDs',
-    unit: 'un',
-    inStock: 50,
-    unitPrice: 1.20,
-    preferredSupplier: 'Digi-Key',
-    leadTime: 5,
-    link_compra: 'https://www.digikey.com/product-detail/en/5mm-rgb-led/LED-RGB-5MM/100-1000-ND/1001000',
-  },
-  {
-    id: '3',
-    name: 'Arduino Uno R3',
-    sku: 'ARDUINO-UNO-R3',
-    description: 'Placa Arduino Uno R3 original',
-    category: 'Microcontroladores',
-    unit: 'un',
-    inStock: 0,
-    unitPrice: 45.00,
-    preferredSupplier: 'Arduino Store',
-    leadTime: 10,
-    link_compra: 'https://www.arduino.cc/en/Main/ArduinoBoardUno',
-    },
-];
+// Função para buscar componentes da API
+const fetchComponents = async (): Promise<any[]> => {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const savedToken = await AsyncStorage.getItem('@LabPage:token');
+
+    const response = await fetch(`${API_BASE_URL}/api/components`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao buscar componentes');
+    }
+
+    const data = await response.json();
+    return data.map((item: any) => ({
+      id: item.id?.toString(),
+      name: item.name || '',
+      sku: item.partNumber || '',
+      description: item.description || '',
+      category: item.category || '',
+      unit: 'un', // Unidade padrão
+      inStock: item.currentStock || 0,
+      unitPrice: item.standardCost || 0,
+      preferredSupplier: item.manufacturer || 'Não informado',
+      leadTime: 7, // Lead time padrão
+      link_compra: item.datasheet || '',
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar componentes:', error);
+    throw error;
+  }
+};
 
 const mockSuppliers = [
   {
@@ -232,13 +226,14 @@ export default function OrderFormScreen() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showComponentModal, setShowComponentModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [components, setComponents] = useState<any[]>([]);
+  const [componentsLoading, setComponentsLoading] = useState(false);
   
   const [formData, setFormData] = useState<OrderForm>({
     orderNumber: generateOrderNumber(),
     status: 'draft',
-    requester: user?.name || '',
+    requester: user?.nome || '',
     department: '',
     projectId: '',
     costCenter: '',
@@ -262,7 +257,28 @@ export default function OrderFormScreen() {
     currentApprovalLevel: 0,
   });
 
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [itemsError, setItemsError] = useState<string>('');
+
   const totalSteps = 5;
+
+  // Carregar componentes ao montar o componente
+  React.useEffect(() => {
+    loadComponents();
+  }, []);
+
+  const loadComponents = async () => {
+    try {
+      setComponentsLoading(true);
+      const data = await fetchComponents();
+      setComponents(data);
+    } catch (error) {
+      console.error('Erro ao carregar componentes:', error);
+      Alert.alert('Erro', 'Não foi possível carregar os componentes');
+    } finally {
+      setComponentsLoading(false);
+    }
+  };
 
   function generateOrderNumber() {
     const timestamp = new Date().getFullYear();
@@ -331,31 +347,46 @@ export default function OrderFormScreen() {
   };
 
   const handleComponentSelect = (component: any) => {
+    console.log('=== DEBUG COMPONENT SELECTION ===');
     console.log('Componente selecionado:', component);
-    if (selectedItemId) {
+    console.log('selectedItemId:', selectedItemId);
+    console.log('Items antes da atualização:', formData.items);
+    
+    if (selectedItemId && component && component.id) {
       const updatedItems = formData.items.map(item => {
         if (item.id === selectedItemId) {
-          return {
+          const updatedItem = {
             ...item,
             componentId: component.id,
-            componentName: component.name,
-            sku: component.sku,
-            description: component.description,
-            category: component.category,
-            unit: component.unit,
-            unitPrice: component.unitPrice,
-            preferredSupplier: component.preferredSupplier,
-            availability: component.inStock > 0 ? 'in_stock' : 'out_of_stock',
-            subtotal: item.quantity * component.unitPrice,
+            componentName: component.name || '',
+            sku: component.sku || '',
+            description: component.description || '',
+            category: component.category || '',
+            unit: component.unit || 'un',
+            unitPrice: component.unitPrice || 0,
+            preferredSupplier: component.preferredSupplier || '',
+            availability: (component.inStock || 0) > 0 ? 'in_stock' : 'out_of_stock',
+            subtotal: item.quantity * (component.unitPrice || 0),
             link_compra: component.link_compra || '',
           };
+          console.log('Item atualizado:', updatedItem);
+          return updatedItem;
         }
         return item;
       });
       
+      console.log('Items após atualização:', updatedItems);
       updateFormData('items', updatedItems as OrderItem[]);
       calculateTotals(updatedItems as OrderItem[]);
+      
+      // Limpar erro de validação se existir
+      setItemsError('');
+    } else {
+      console.log('ERRO: selectedItemId ou component inválido');
+      console.log('selectedItemId:', selectedItemId);
+      console.log('component:', component);
     }
+    
     setSelectedItemId(null);
     setShowComponentModal(false);
   };
@@ -366,35 +397,38 @@ export default function OrderFormScreen() {
   };
 
   const validateStep = (step: number): boolean => {
+    const newErrors: { [key: string]: string } = {};
+    let ok = true;
     switch (step) {
       case 1:
         if (!formData.requester.trim()) {
-          Alert.alert('Erro', 'Solicitante é obrigatório');
-          return false;
+          newErrors.requester = 'Obrigatório';
+          ok = false;
         }
         if (!formData.department.trim()) {
-          Alert.alert('Erro', 'Setor/Turma é obrigatório');
-          return false;
+          newErrors.department = 'Obrigatório';
+          ok = false;
         }
         if (!formData.desiredDate) {
-          Alert.alert('Erro', 'Data desejada é obrigatória');
-          return false;
+          newErrors.desiredDate = 'Obrigatório';
+          ok = false;
         }
-        return true;
+        setErrors(prev => ({ ...prev, ...newErrors }));
+        return ok;
       
       case 2:
+        setItemsError('');
         if (formData.items.length === 0) {
-          Alert.alert('Erro', 'Pelo menos um item é obrigatório');
+          setItemsError('Pelo menos um item é obrigatório');
           return false;
         }
-        
         for (const item of formData.items) {
           if (!item.componentName.trim()) {
-            Alert.alert('Erro', 'Nome do componente é obrigatório para todos os itens');
+            setItemsError('Nome do componente é obrigatório em todos os itens');
             return false;
           }
           if (item.quantity <= 0) {
-            Alert.alert('Erro', 'Quantidade deve ser maior que zero');
+            setItemsError('Quantidade deve ser maior que zero em todos os itens');
             return false;
           }
         }
@@ -402,7 +436,7 @@ export default function OrderFormScreen() {
       
       case 3:
         if (formData.purchaseMode === 'single_supplier' && !formData.selectedSupplier) {
-          Alert.alert('Erro', 'Fornecedor é obrigatório para compra de fornecedor único');
+          setErrors(prev => ({ ...prev, selectedSupplier: 'Selecione um fornecedor' }));
           return false;
         }
         return true;
@@ -579,6 +613,7 @@ export default function OrderFormScreen() {
           value={formData.requester}
           onChangeText={(text) => updateFormData('requester', text)}
           placeholder="Nome do solicitante"
+          error={errors.requester}
           style={styles.halfInput}
         />
         
@@ -587,6 +622,7 @@ export default function OrderFormScreen() {
           value={formData.department}
           onChangeText={(text) => updateFormData('department', text)}
           placeholder="Departamento ou turma"
+          error={errors.department}
           style={styles.halfInput}
         />
       </View>
@@ -651,6 +687,7 @@ export default function OrderFormScreen() {
           value={formData.desiredDate}
           onChange={(dateStr) => updateFormData('desiredDate', dateStr)}
           placeholder="Data desejada"
+          error={errors.desiredDate}
         />
       </View>
 
@@ -856,6 +893,9 @@ export default function OrderFormScreen() {
             </View>
           ))}
         </View>
+      )}
+      {!!itemsError && (
+        <Text style={{ color: colors.error, marginTop: 8 }}>{itemsError}</Text>
       )}
 
       {/* Resumo */}
@@ -1291,14 +1331,14 @@ export default function OrderFormScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Component Selector Modal */}
-      <ComponentSelector
+      {/* Component Picker Modal */}
+      <ComponentPicker
         visible={showComponentModal}
         onClose={() => setShowComponentModal(false)}
         onSelect={handleComponentSelect}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        components={mockComponents}
+        components={components}
+        loading={componentsLoading}
+        onNavigateToComponentForm={navigateToComponentForm}
       />
     </>
   );

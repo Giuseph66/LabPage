@@ -36,7 +36,7 @@ curl -X POST "$url/api/auth/register" \
     "nome": "João Silva",
     "senha": "SenhaForte123"
   }'
-```
+  ```
 
 #### POST /api/auth/login
 - Finalidade: autenticar e retornar um JWT
@@ -216,6 +216,83 @@ curl -X POST "$url/api/notifications/device-token" \
 ```
 
 ### Componentes
+
+#### POST /api/components
+- Finalidade: criar novo componente
+- Acesso: protegido (PROFESSOR ou ADMIN)
+- Body (JSON): dados completos do componente
+- Resposta (200 OK): componente criado
+
+Exemplo (cURL):
+```bash
+curl -X POST "$url/api/components" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "partNumber": "LAB-RES-10K-0603",
+    "name": "Resistor 10kΩ 0603",
+    "description": "Resistor de precisão 10kΩ SMD 0603",
+    "category": "Resistores",
+    "subcategory": "SMD/0603",
+    "manufacturer": "Yageo",
+    "series": "RC0603",
+    "packageType": "0603",
+    "technicalParams": {
+      "resistance": 10000,
+      "tolerance": 5,
+      "power": 0.1,
+      "tcr": 100,
+      "technology": "Filme Espesso"
+    },
+    "currentStock": 100,
+    "minimumStock": 20,
+    "economicOrderQuantity": 500,
+    "storageLocation": "A1-B2-C3",
+    "standardCost": 0.05,
+    "currency": "BRL",
+    "rohs": true,
+    "reach": true,
+    "msl": "1",
+    "esdLevel": "Classe 1",
+    "tempMin": -55,
+    "tempMax": 155,
+    "datasheet": "https://www.yageo.com/documents/recent/PYu-RC_Group_51_RoHS_L_11.pdf",
+    "status": "active"
+  }'
+```
+
+#### GET /api/components
+- Finalidade: listar todos os componentes
+- Acesso: protegido (JWT)
+- Resposta (200 OK): array de componentes
+
+Exemplo (cURL):
+```bash
+curl "$url/api/components" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### GET /api/components/{id}
+- Finalidade: buscar componente por ID
+- Acesso: protegido (JWT)
+- Resposta (200 OK): dados do componente
+
+Exemplo (cURL):
+```bash
+curl "$url/api/components/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### GET /api/components/search?q=...
+- Finalidade: buscar componentes por texto (nome, part number, fabricante)
+- Acesso: protegido (JWT)
+- Resposta (200 OK): array de componentes encontrados
+
+Exemplo (cURL):
+```bash
+curl "$url/api/components/search?q=resistor" \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 #### GET /api/components/by-barcode?code=...
 - Finalidade: buscar componente por código/QR (stub)

@@ -97,6 +97,9 @@ export default function ProfileScreen() {
     }
   }
   const handleLogout = () => {
+    // alert desativado para poder usar web 
+    
+    /*
     Alert.alert(
       'Sair da Conta',
       'Tem certeza que deseja sair?',
@@ -112,6 +115,10 @@ export default function ProfileScreen() {
         },
       ]
     );
+    */
+   //saindo direto
+   signOut();
+   router.replace('/(auth)/login');
   };
 
   const handleNotificationToggle = (id: string, value: boolean) => {

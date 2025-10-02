@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { router } from "expo-router";
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface Stats {
@@ -17,7 +17,7 @@ interface Stats {
 }
 
 export default function StatsScreen() {
-  const { user, isAdmin, token } = useAuth();
+  const { user, isAdmin, token, revalidateUser } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const [stats, setStats] = useState<Stats>({
@@ -29,20 +29,37 @@ export default function StatsScreen() {
     pendingReservations: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [validating, setValidating] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      router.replace("/(auth)/login");
-      return;
+    async function validateAndFetch() {
+      setValidating(true);
+      
+      if (!user) {
+        router.replace("/(auth)/login");
+        return;
+      }
+      
+      const isValid = await revalidateUser();
+      
+      if (!isValid) {
+        Alert.alert("Sessão Expirada", "Faça login novamente");
+        router.replace("/(auth)/login");
+        return;
+      }
+      
+      if (!isAdmin()) {
+        Alert.alert("Acesso Negado", "Você não tem permissão de administrador");
+        router.replace("/(tabs)");
+        return;
+      }
+      
+      setValidating(false);
+      fetchStats();
     }
     
-    if (!isAdmin()) {
-      router.replace("/(tabs)");
-      return;
-    }
-    
-    fetchStats();
-  }, [user, isAdmin]);
+    validateAndFetch();
+  }, []);
 
   const fetchStats = async () => {
     try {
@@ -116,6 +133,19 @@ export default function StatsScreen() {
       color: "#F59E0B",
     },
   ];
+
+  if (validating) {
+    return (
+      <Screen scrollable={false}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accentPrimary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Validando permissões...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
 
   if (loading) {
     return (

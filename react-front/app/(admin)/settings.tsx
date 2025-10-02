@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { router } from "expo-router";
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface SettingItem {
@@ -17,7 +17,7 @@ interface SettingItem {
 }
 
 export default function SettingsScreen() {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, signOut, revalidateUser } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   
@@ -25,18 +25,36 @@ export default function SettingsScreen() {
   const [emailAlerts, setEmailAlerts] = useState(false);
   const [autoBackup, setAutoBackup] = useState(true);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [validating, setValidating] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      router.replace("/(auth)/login");
-      return;
+    async function validateAccess() {
+      setValidating(true);
+      
+      if (!user) {
+        router.replace("/(auth)/login");
+        return;
+      }
+      
+      const isValid = await revalidateUser();
+      
+      if (!isValid) {
+        Alert.alert("Sessão Expirada", "Faça login novamente");
+        router.replace("/(auth)/login");
+        return;
+      }
+      
+      if (!isAdmin()) {
+        Alert.alert("Acesso Negado", "Você não tem permissão de administrador");
+        router.replace("/(tabs)");
+        return;
+      }
+      
+      setValidating(false);
     }
     
-    if (!isAdmin()) {
-      router.replace("/(tabs)");
-      return;
-    }
-  }, [user, isAdmin]);
+    validateAccess();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -127,6 +145,19 @@ export default function SettingsScreen() {
       onPress: () => Alert.alert("Cache", "Cache do sistema limpo com sucesso!"),
     },
   ];
+
+  if (validating) {
+    return (
+      <Screen scrollable={false}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accentPrimary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Validando permissões...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scrollable={false}>
@@ -381,6 +412,16 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 15,
   },
 });
 

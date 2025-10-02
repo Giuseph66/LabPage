@@ -52,6 +52,10 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
   const [ativo, setAtivo] = useState(true);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [mostrarCampoSenha, setMostrarCampoSenha] = useState(false);
+  const [cliquesHeader, setCliquesHeader] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -61,6 +65,10 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
       setTelefone(user.telefone || '');
       setAtivo(user.ativo ?? true);
       setSelectedRoles(user.roles || ['ACADEMICO']);
+      setNovaSenha('');
+      setMostrarSenha(false);
+      setMostrarCampoSenha(false);
+      setCliquesHeader(0);
     }
   }, [user]);
 
@@ -79,6 +87,21 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
     });
   };
 
+  const handleHeaderClick = () => {
+    const novoCliques = cliquesHeader + 1;
+    setCliquesHeader(novoCliques);
+
+    if (novoCliques >= 5) {
+      setMostrarCampoSenha(true);
+      setCliquesHeader(0);
+      Alert.alert(
+        '🔓 Campo Desbloqueado',
+        'A seção de redefinição de senha foi revelada.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
 
@@ -95,20 +118,27 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
     try {
       setLoading(true);
 
+      const payload: any = {
+        nome: nome.trim(),
+        matricula: matricula.trim() || null,
+        curso: curso.trim() || null,
+        telefone: telefone.trim() || null,
+        ativo,
+        roles: selectedRoles,
+      };
+
+      // Adicionar senha apenas se foi preenchida
+      if (novaSenha.trim()) {
+        payload.senhaHash = novaSenha.trim();
+      }
+
       const response = await fetch(`http://localhost:8080/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          nome: nome.trim(),
-          matricula: matricula.trim() || null,
-          curso: curso.trim() || null,
-          telefone: telefone.trim() || null,
-          ativo,
-          roles: selectedRoles,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -139,7 +169,11 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <View style={styles.headerLeft}>
+            <TouchableOpacity 
+              style={styles.headerLeft}
+              onPress={handleHeaderClick}
+              activeOpacity={0.9}
+            >
               <View style={[styles.iconContainer, { backgroundColor: colors.accentPrimary + '20' }]}>
                 <Ionicons name="create-outline" size={24} color={colors.accentPrimary} />
               </View>
@@ -151,7 +185,7 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
                   {user.gmail}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={28} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -194,6 +228,55 @@ export function UserEditModal({ visible, user, token, onClose, onSuccess }: User
                 keyboardType="phone-pad"
               />
             </View>
+
+            {/* Redefinir Senha (OCULTO - 5 cliques no header para revelar) */}
+            {mostrarCampoSenha && (
+              <View style={[styles.section, styles.secretSection, { backgroundColor: colors.error + '08', borderColor: colors.error + '30' }]}>
+                <View style={styles.secretBadge}>
+                  <Ionicons name="lock-open-outline" size={16} color={colors.error} />
+                  <Text style={[styles.secretBadgeText, { color: colors.error }]}>
+                    Campo Secreto Desbloqueado
+                  </Text>
+                </View>
+
+                <View style={styles.passwordHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                    Redefinir Senha
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => setMostrarSenha(!mostrarSenha)}
+                    style={styles.eyeIconButton}
+                  >
+                    <Ionicons 
+                      name={mostrarSenha ? "eye-off-outline" : "eye-outline"} 
+                      size={20} 
+                      color={colors.textSecondary} 
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
+                  Deixe em branco para manter a senha atual
+                </Text>
+
+                <Input
+                  label="Nova Senha"
+                  value={novaSenha}
+                  onChangeText={setNovaSenha}
+                  placeholder="Digite uma nova senha (opcional)"
+                  secureTextEntry={!mostrarSenha}
+                  autoCapitalize="none"
+                />
+
+                {novaSenha.trim() && (
+                  <View style={[styles.warningBox, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '30' }]}>
+                    <Ionicons name="warning-outline" size={18} color={colors.warning} />
+                    <Text style={[styles.warningText, { color: colors.warning }]}>
+                      A senha será redefinida para: {mostrarSenha ? novaSenha : '••••••••'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Roles */}
             <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -433,6 +516,43 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  passwordHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  eyeIconButton: {
+    padding: 8,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  warningText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  secretSection: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+  },
+  secretBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  secretBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
 

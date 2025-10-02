@@ -24,13 +24,14 @@ interface User {
 }
 
 export default function UsersScreen() {
-  const { user, isAdmin, token } = useAuth();
+  const { user, isAdmin, token, revalidateUser } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [validating, setValidating] = useState(true);
 
   const fetchUsers = async () => {
     try {
@@ -59,18 +60,35 @@ export default function UsersScreen() {
   };
 
   useEffect(() => {
-    if (!user) {
-      router.replace("/(auth)/login");
-      return;
+    async function validateAndFetch() {
+      setValidating(true);
+      
+      if (!user) {
+        router.replace("/(auth)/login");
+        return;
+      }
+      
+      // Revalidar permissões
+      const isValid = await revalidateUser();
+      
+      if (!isValid) {
+        Alert.alert("Sessão Expirada", "Faça login novamente");
+        router.replace("/(auth)/login");
+        return;
+      }
+      
+      if (!isAdmin()) {
+        Alert.alert("Acesso Negado", "Você não tem permissão de administrador");
+        router.replace("/(tabs)");
+        return;
+      }
+      
+      setValidating(false);
+      fetchUsers();
     }
     
-    if (!isAdmin()) {
-      router.replace("/(tabs)");
-      return;
-    }
-    
-    fetchUsers();
-  }, [user, isAdmin]);
+    validateAndFetch();
+  }, []);
 
   const handleEditUser = (userToEdit: User) => {
     setEditingUser(userToEdit);
@@ -187,6 +205,19 @@ export default function UsersScreen() {
       </Text>
     </View>
   );
+
+  if (validating) {
+    return (
+      <Screen scrollable={false}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accentPrimary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Validando permissões...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scrollable={false}>

@@ -1,11 +1,9 @@
 ## API - Endpoints
 
-Base URL: `http://localhost:8080`
-
 Sugestão: exporte variáveis de ambiente para facilitar os testes
 
 ```bash
-BASE="http://localhost:8080"
+url="http://localhost:8080"
 # Após o login, substitua o conteúdo do TOKEN
 TOKEN="coloque_o_token_aqui"
 ```
@@ -31,7 +29,7 @@ TOKEN="coloque_o_token_aqui"
 
 Exemplo (cURL):
 ```bash
-curl -X POST "$BASE/api/auth/register" \
+curl -X POST "$url/api/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
     "gmail": "joao@if.edu.br",
@@ -48,12 +46,12 @@ curl -X POST "$BASE/api/auth/register" \
 
 Exemplo (cURL):
 ```bash
-curl -X POST "$BASE/api/auth/login" \
+curl -X POST "$url/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{ "gmail": "joao@if.edu.br", "senha": "SenhaForte123" }'
 
 # Dica: capturar o token automaticamente (se tiver jq instalado)
-TOKEN=$(curl -s -X POST "$BASE/api/auth/login" \
+TOKEN=$(curl -s -X POST "$url/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{ "gmail": "joao@if.edu.br", "senha": "SenhaForte123" }' | jq -r .token)
 echo "$TOKEN"
@@ -67,7 +65,7 @@ echo "$TOKEN"
 
 Exemplo (cURL):
 ```bash
-curl -X POST "$BASE/api/auth/forgot-password" \
+curl -X POST "$url/api/auth/forgot-password" \
   -H "Content-Type: application/json" \
   -d '{ "gmail": "joao@if.edu.br" }'
 ```
@@ -80,7 +78,7 @@ curl -X POST "$BASE/api/auth/forgot-password" \
 
 Exemplo (cURL):
 ```bash
-curl -X POST "$BASE/api/auth/reset-password" \
+curl -X POST "$url/api/auth/reset-password" \
   -H "Content-Type: application/json" \
   -d '{ "token": "coloque_o_token_de_reset_aqui", "novaSenha": "SenhaForte123" }'
 ```
@@ -108,7 +106,7 @@ curl -X POST "$BASE/api/auth/reset-password" \
 
 Exemplo (cURL):
 ```bash
-curl "$BASE/api/users/me" \
+curl "$url/api/users/me" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -118,7 +116,7 @@ curl "$BASE/api/users/me" \
 
 Exemplo (cURL):
 ```bash
-curl "$BASE/api/users" \
+curl "$url/api/users" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -128,7 +126,7 @@ curl "$BASE/api/users" \
 
 Exemplo (cURL):
 ```bash
-curl -X POST "$BASE/api/users" \
+curl -X POST "$url/api/users" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -158,7 +156,7 @@ curl -X POST "$BASE/api/users" \
 Exemplo (cURL):
 ```bash
 USER_ID=1
-curl -X PUT "$BASE/api/users/$USER_ID" \
+curl -X PUT "$url/api/users/$USER_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -177,7 +175,7 @@ curl -X PUT "$BASE/api/users/$USER_ID" \
 Exemplo (cURL):
 ```bash
 USER_ID=1
-curl -X DELETE "$BASE/api/users/$USER_ID" \
+curl -X DELETE "$url/api/users/$USER_ID" \
   -H "Authorization: Bearer $TOKEN" -i
 ```
 
@@ -196,7 +194,7 @@ curl -X DELETE "$BASE/api/users/$USER_ID" \
 Exemplo (cURL):
 ```bash
 USER_ID=1
-curl -X PUT "$BASE/api/users/$USER_ID/roles" \
+curl -X PUT "$url/api/users/$USER_ID/roles" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "roles": ["ADMIN", "PROFESSOR"] }'
@@ -211,7 +209,7 @@ curl -X PUT "$BASE/api/users/$USER_ID/roles" \
 
 Exemplo (cURL):
 ```bash
-curl -X POST "$BASE/api/notifications/device-token" \
+curl -X POST "$url/api/notifications/device-token" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "deviceToken": "expo_or_fcm_token_aqui" }'
@@ -226,7 +224,7 @@ curl -X POST "$BASE/api/notifications/device-token" \
 
 Exemplo (cURL):
 ```bash
-curl "$BASE/api/components/by-barcode?code=LAB-RES-220R-001" \
+curl "$url/api/components/by-barcode?code=LAB-RES-220R-001" \
   -H "Authorization: Bearer $TOKEN" -i
 ```
 

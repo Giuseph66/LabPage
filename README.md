@@ -3,39 +3,39 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2+-green.svg)](https://spring.io/projects/spring-boot)
 [![React Native](https://img.shields.io/badge/React%20Native-0.72+-blue.svg)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo-49+-purple.svg)](https://expo.dev/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0+-blue.svg)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 📋 Visão Geral
 
-O **HardLab** é um sistema mobile completo para gestão de laboratórios de tecnologia, permitindo o controle de projetos, materiais, pedidos e anexos com rastreabilidade completa. O sistema foi desenvolvido para atender às necessidades específicas de laboratórios de hardware e software, oferecendo controle de estoque, gestão de projetos e auditoria de movimentações.
+O **HardLab** é um sistema mobile completo para gestão de laboratórios de tecnologia, desenvolvido com **Spring Boot** no backend e **React Native + Expo** no frontend. O sistema permite o controle completo de componentes eletrônicos, gestão de projetos, sistema de pedidos, reservas de equipamentos e notificações push, oferecendo uma solução integrada para laboratórios de hardware e software.
 
 ### 🎯 Objetivos Principais
 
-- **Gestão de Projetos**: Criação, edição e acompanhamento de projetos com equipes e materiais
-- **Controle de Materiais**: Catálogo organizado por tipos com controle de estoque e localização
-- **Sistema de Pedidos**: Fluxo completo de solicitação, aprovação e devolução de materiais
-- **Gestão de Anexos**: Upload e organização de arquivos (STL, firmware, documentação)
-- **Auditoria**: Rastreabilidade completa de todas as operações
-- **Experiência Mobile**: App nativo com recursos de câmera, QR Code e notificações push
+- **Gestão de Componentes**: Catálogo completo de componentes eletrônicos com controle de estoque
+- **Sistema de Pedidos**: Fluxo completo de solicitação, aprovação e rastreamento de pedidos
+- **Gestão de Projetos**: Criação e acompanhamento de projetos com equipes e materiais
+- **Reservas de Equipamentos**: Sistema de agendamento e controle de equipamentos de laboratório
+- **Notificações Push**: Alertas em tempo real para eventos importantes
+- **Experiência Mobile**: App nativo com interface intuitiva e recursos nativos
 
 ## 🏗️ Arquitetura
 
 ### Backend (Spring Boot 3+)
 - **Framework**: Spring Boot 3.2+ com Java 17
-- **Banco de Dados**: PostgreSQL 15+ com Flyway para migrations
+- **Banco de Dados**: MySQL 8.0+ com JPA/Hibernate
 - **Autenticação**: JWT com Spring Security
-- **Documentação**: OpenAPI/Swagger
-- **Storage**: MinIO (S3 compatível) para anexos
-- **QR Codes**: QRGen/ZXing para geração de códigos
+- **Documentação**: API REST completa com exemplos cURL
+- **Segurança**: CORS configurado, validação de dados
+- **Arquitetura**: Controllers, Services, Repositories (padrão MVC)
 
 ### Frontend (React Native + Expo)
 - **Framework**: React Native com Expo SDK 49+
-- **Navegação**: Expo Router
-- **Estado**: TanStack Query com persistência offline
-- **UI**: React Native Paper
-- **Recursos Nativos**: Câmera, QR Scanner, Push Notifications
-- **Storage Local**: SQLite para cache offline
+- **Navegação**: Expo Router com roteamento baseado em arquivos
+- **Estado**: Context API + AsyncStorage para persistência
+- **UI**: Componentes customizados com tema dark/light
+- **Recursos Nativos**: Câmera, Push Notifications, AsyncStorage
+- **Arquitetura**: Componentes reutilizáveis, hooks customizados
 
 ## 🚀 Quick Start
 
@@ -44,6 +44,7 @@ O **HardLab** é um sistema mobile completo para gestão de laboratórios de tec
 - **Java 17+**
 - **Node.js 18+**
 - **Docker & Docker Compose**
+- **MySQL 8.0+**
 - **Expo CLI**: `npm install -g @expo/cli`
 
 ### 1. Clone e Setup Inicial
@@ -62,42 +63,34 @@ cd ../java-back
 ./mvnw clean install
 ```
 
-### 2. Configuração do Ambiente
+### 2. Iniciar Infraestrutura com Docker
 
 ```bash
-# Copie os arquivos de configuração
-cp java-back/src/main/resources/application-example.yml java-back/src/main/resources/application-local.yml
-cp react-front/app.config.example.js react-front/app.config.js
-
-# Edite as configurações conforme necessário
-```
-
-### 3. Iniciar Infraestrutura
-
-```bash
-# Inicie PostgreSQL e MinIO
+# Inicie MySQL com Docker Compose
 docker-compose up -d
 
-# Verifique se os serviços estão rodando
+# Verifique se o MySQL está rodando
 docker-compose ps
+
+# O MySQL estará disponível em:
+# Host: localhost:3306
+# Database: hard_lab
+# Usuário: root
+# Senha: MinhaSenhaSegura
 ```
 
-### 4. Executar Backend
+### 3. Executar Backend
 
 ```bash
 cd java-back
 
-# Execute as migrations
-./mvnw flyway:migrate
-
-# Inicie o servidor
+# Inicie o servidor (o Hibernate criará as tabelas automaticamente)
 ./mvnw spring-boot:run
 
-# Acesse a documentação da API
-# http://localhost:8080/swagger-ui.html
+# A API estará disponível em: http://localhost:8080
 ```
 
-### 5. Executar Frontend
+### 4. Executar Frontend
 
 ```bash
 cd react-front
@@ -116,126 +109,155 @@ npx expo start
 
 | Perfil | Permissões |
 |--------|------------|
-| **ADMIN** | Gestão completa + usuários + tipos de materiais |
-| **PROFESSOR** | Cria projetos, registra materiais próprios, aprova pedidos |
-| **MEMBRO** | Solicita materiais, registra progresso, anexa arquivos |
-| **VISITANTE** | Visualização pública de projetos (opcional) |
+| **ADMIN** | Gestão completa do sistema + usuários + todos os módulos |
+| **PROFESSOR** | Cria projetos, gerencia componentes, aprova pedidos |
+| **ACADEMICO** | Visualiza dados, faz pedidos, participa de projetos |
 
 ### 🔧 Módulos Principais
 
-#### Projetos
+#### Componentes Eletrônicos
+- Catálogo completo de componentes com especificações técnicas
+- Controle de estoque com alertas de baixo estoque
+- Categorização por tipo (resistores, capacitores, ICs, etc.)
+- Informações de conformidade (RoHS, REACH)
+- Localização física no laboratório
+
+#### Sistema de Pedidos
+- Criação de pedidos com múltiplos itens
+- Seleção de componentes do catálogo
+- Cálculo automático de totais
+- Rastreamento de status (rascunho, pendente, aprovado, etc.)
+- Histórico completo de pedidos
+
+#### Gestão de Projetos
 - Criação e edição de projetos
-- Gestão de equipes e responsáveis
-- Controle de status e progresso
-- Vinculação com materiais utilizados
-- Upload de anexos (STL, firmware, docs)
+- Definição de responsáveis e equipes
+- Controle de fases e progresso
+- Vinculação com laboratórios
+- Categorização por área de conhecimento
 
-#### Materiais
-- Catálogo organizado por tipos
-- Controle de estoque e localização
-- Sistema de donos (professores/pessoas)
-- Geração automática de QR Codes
-- Estados: novo, usado, defeituoso
+#### Reservas de Equipamentos
+- Agendamento de equipamentos de laboratório
+- Visualização em calendário (dia, semana, mês)
+- Controle de disponibilidade
+- Notificações de reservas
+- Histórico de uso
 
-#### Pedidos
-- Fluxo completo: Solicitação → Aprovação → Retirada → Devolução
-- Controle de baixas de estoque
-- Notificações automáticas
-- Rastreabilidade de movimentações
-
-#### Anexos
-- Upload de múltiplos tipos de arquivo
-- Processamento assíncrono (hash, metadados, thumbnails)
-- Organização por projeto
-- Visualização integrada
+#### Notificações
+- Sistema de notificações push
+- Alertas de estoque baixo
+- Lembretes de reservas
+- Atualizações de status de pedidos
 
 ## 🗄️ Modelo de Dados
 
-### Tabelas Principais
+### Entidades Principais
 
 ```sql
 -- Usuários e Autenticação
-usuarios(id, nome, email, role, ativo, created_at)
+users(id, gmail, nome, matricula, curso, telefone, ativo, roles, created_at, updated_at)
 
--- Projetos e Equipes
-projetos(id, titulo, descricao, area, professor_id, status, created_at, updated_at)
-projeto_membros(id, projeto_id, usuario_id, papel_no_projeto)
+-- Componentes Eletrônicos
+components(id, part_number, name, description, category, manufacturer, current_stock, 
+          minimum_stock, storage_location, status, rohs, reach, created_at, updated_at)
 
--- Materiais e Tipos
-tipos_materiais(id, nome, descricao)
-materiais(id, nome, tipo_id, dono_id, codigo_qr, quantidade, unidade, localizacao, estado)
+-- Projetos
+projects(id, name, short_description, categories, responsible, planned_start, 
+         planned_end, laboratories, phase, created_at, updated_at)
 
--- Relacionamentos
-projeto_materiais(id, projeto_id, material_id, quantidade_prevista, quantidade_utilizada)
+-- Pedidos/Ordens
+lab_orders(id, data, created_by, created_at, updated_at)
 
--- Pedidos e Movimentações
-pedidos(id, solicitante_id, status, observacao, created_at, updated_at)
-pedido_itens(id, pedido_id, material_id, quantidade, situacao_item)
+-- Reservas
+reservations(id, data, created_by, created_at, updated_at)
 
--- Anexos e Arquivos
-anexos(id, projeto_id, nome, tipo, hash, url, tamanho, metadados, created_at)
-
--- Auditoria
-auditoria(id, usuario_id, acao, recurso, recurso_id, dados_anteriores, dados_novos, timestamp)
+-- Notificações (futuro)
+notifications(id, user_id, title, message, type, read, created_at)
 ```
+
+### Relacionamentos
+- **Usuários** podem ter múltiplas **roles** (ADMIN, PROFESSOR, ACADEMICO)
+- **Componentes** são gerenciados por usuários com role PROFESSOR ou ADMIN
+- **Projetos** são criados por usuários e podem ter múltiplas categorias
+- **Pedidos** e **Reservas** são criados por usuários autenticados
 
 ## 🔌 API Endpoints
 
-Base URL: `http://localhost:8080`
+**Base URL**: `http://localhost:8080`
 
-👉 Documentação com cURL (completa e organizada): [java-back/API_ENDPOINTS.md](java-back/API_ENDPOINTS.md)
+📚 **Documentação Completa da API**: [java-back/API_ENDPOINTS.md](java-back/API_ENDPOINTS.md)
 
-### Autenticação (`/api/auth`)
-- `POST /api/auth/register` — Cadastrar usuário e receber JWT
-- `POST /api/auth/login` — Autenticar e receber JWT
-- `POST /api/auth/forgot-password` — Iniciar recuperação de senha
-- `POST /api/auth/reset-password` — Redefinir senha com token
+A API REST oferece **25 endpoints** organizados em módulos:
 
-### Usuários (`/api/users`)
-- `GET /api/users/me` — Gmail do usuário autenticado (JWT)
-- `GET /api/users` — Listar usuários (ROLE_ADMIN)
-- `POST /api/users` — Criar usuário (ROLE_ADMIN)
-- `PUT /api/users/{id}` — Atualizar usuário (ROLE_ADMIN)
-- `DELETE /api/users/{id}` — Excluir usuário (ROLE_ADMIN)
-- `PUT /api/users/{id}/roles` — Atualizar roles (ROLE_ADMIN)
+### 🔐 Autenticação (`/api/auth`)
+- Cadastro, login, recuperação e redefinição de senha
+- Geração de tokens JWT para autenticação
 
-### Notificações (`/api/notifications`)
-- `POST /api/notifications/device-token` — Registrar token de push do dispositivo (JWT)
+### 👥 Usuários (`/api/users`) 
+- Gestão completa de usuários (CRUD)
+- Atualização de roles e permissões
+- Acesso restrito a administradores
 
-### Componentes (`/api/components`)
-- `GET /api/components/by-barcode?code=...` — Buscar por código/QR (stub)
+### 🔧 Componentes (`/api/components`)
+- Catálogo completo de componentes eletrônicos
+- Busca por texto e código de barras
+- Controle de estoque e especificações técnicas
 
-## 🔄 Processos Assíncronos
+### 📦 Pedidos (`/api/orders`)
+- Criação e listagem de pedidos
+- Sistema de aprovação e rastreamento
 
-### Tarefas Agendadas (@Scheduled)
-- **Verificação diária de estoque baixo** - Envia notificações para administradores
-- **Pedidos pendentes** - Lembretes para aprovação
-- **Limpeza de arquivos temporários** - Remove arquivos não utilizados
+### 📋 Projetos (`/api/projects`)
+- Gestão de projetos e equipes
+- Controle de fases e progresso
 
-### Tarefas Assíncronas (@Async)
-- **Processamento de anexos** - Cálculo de hash, extração de metadados
-- **Geração de QR Codes** - Criação e cache de códigos
-- **Geração de thumbnails** - Para imagens e arquivos 3D
-- **Envio de notificações** - Push notifications para eventos importantes
+### 📅 Reservas (`/api/reservations`)
+- Agendamento de equipamentos
+- Sistema de calendário integrado
+
+### 🔔 Notificações (`/api/notifications`)
+- Sistema de notificações push
+- Registro de tokens de dispositivo
+
+### ⚙️ Sistema (`/api/health`, `/api/cors-test`)
+- Verificação de saúde da API
+- Teste de configuração CORS
+
+**🎯 Todos os endpoints incluem exemplos cURL prontos para uso!**
+
+## 🔄 Funcionalidades Avançadas
+
+### Sistema de Notificações
+- **Notificações Push** em tempo real para eventos importantes
+- **Alertas de Estoque** quando componentes atingem estoque mínimo
+- **Lembretes de Reservas** para equipamentos agendados
+- **Atualizações de Status** para pedidos e projetos
+
+### Controle de Acesso
+- **Autenticação JWT** com tokens seguros
+- **Roles Hierárquicas** (ADMIN > PROFESSOR > ACADEMICO)
+- **CORS Configurado** para acesso cross-origin
+- **Validação de Dados** em todos os endpoints
 
 ## 📱 Recursos Nativos do App
 
-### Câmera e QR Code
-- **Scanner de QR Code** para entrada/saída rápida de materiais
-- **Captura de fotos** para documentação de projetos
-- **Leitura de códigos de barras** (opcional)
-
-### Notificações Push
-- **Aprovações de pedidos** - Notificação imediata para solicitantes
-- **Estoque baixo** - Alertas para administradores
-- **Prazos de projetos** - Lembretes para equipes
-- **Devoluções pendentes** - Avisos para responsáveis
+### Interface Mobile
+- **Design Responsivo** adaptado para diferentes tamanhos de tela
+- **Tema Dark/Light** com cores personalizáveis
+- **Navegação Intuitiva** com Expo Router
+- **Componentes Reutilizáveis** para consistência visual
 
 ### Funcionalidades Offline
-- **Cache inteligente** com TanStack Query persist
-- **Sincronização automática** quando online
-- **Modo offline** para consultas básicas
-- **Upload em fila** para arquivos grandes
+- **Cache Local** com AsyncStorage para dados essenciais
+- **Sincronização Automática** quando a conexão é restaurada
+- **Modo Offline** para consultas básicas
+- **Persistência de Sessão** para continuidade do usuário
+
+### Recursos Nativos
+- **Notificações Push** para alertas importantes
+- **Câmera Integrada** para captura de fotos
+- **Scanner QR Code** para identificação rápida
+- **Armazenamento Local** para dados temporários
 
 ## 🛠️ Desenvolvimento
 
@@ -245,28 +267,29 @@ Base URL: `http://localhost:8080`
 LabPage/
 ├── java-back/                 # Spring Boot API
 │   ├── src/main/java/
-│   │   ├── com/hardlab/
-│   │   │   ├── config/      # Configurações
-│   │   │   ├── controller/  # Controllers REST
-│   │   │   ├── dto/         # Data Transfer Objects
-│   │   │   ├── entity/      # Entidades JPA
-│   │   │   ├── repository/  # Repositories
-│   │   │   ├── service/     # Lógica de negócio
-│   │   │   └── security/    # Configurações de segurança
-│   │   └── resources/
-│   │       ├── db/migration/ # Flyway migrations
-│   │       └── application.yml
-│   └── Dockerfile
+│   │   └── com/hard_lab_pag/Hard_Lab/
+│   │       ├── auth/         # Autenticação e JWT
+│   │       ├── user/         # Gestão de usuários
+│   │       ├── components/   # Componentes eletrônicos
+│   │       ├── orders/       # Sistema de pedidos
+│   │       ├── projects/     # Gestão de projetos
+│   │       ├── reservations/ # Reservas de equipamentos
+│   │       ├── notifications/ # Sistema de notificações
+│   │       ├── security/     # Configurações de segurança
+│   │       └── infra/        # Configurações gerais
+│   └── src/main/resources/
+│       └── application.properties
 ├── react-front/               # React Native App
 │   ├── app/                  # Expo Router pages
+│   │   ├── (tabs)/          # Telas principais
+│   │   ├── (auth)/          # Autenticação
+│   │   ├── (admin)/         # Administração
+│   │   └── extra/           # Formulários e modais
 │   ├── components/           # Componentes reutilizáveis
+│   ├── context/             # Context API
 │   ├── hooks/               # Custom hooks
-│   ├── services/            # API services
-│   ├── stores/              # Estado global
-│   └── types/               # TypeScript types
-├── docker-compose.yml        # Infraestrutura local
-├── docs/                    # Documentação
-└── scripts/                 # Scripts de automação
+│   └── styles/              # Estilos globais
+└── README.md                # Documentação principal
 ```
 
 ### Comandos Úteis
@@ -275,73 +298,109 @@ LabPage/
 # Backend
 cd java-back
 ./mvnw clean install        # Build do projeto
-./mvnw test                 # Executar testes
-./mvnw flyway:migrate       # Executar migrations
 ./mvnw spring-boot:run      # Executar aplicação
+# A API estará em: http://localhost:8080
 
 # Frontend
 cd react-front
-npm run start               # Iniciar servidor de desenvolvimento
-npm run build               # Build para produção
-npm run lint                # Verificar código
-npm run test                # Executar testes
+npm install                 # Instalar dependências
+npx expo start             # Iniciar servidor de desenvolvimento
+# Escaneie o QR Code com Expo Go
 
 # Docker
-docker-compose up -d        # Iniciar infraestrutura
-docker-compose down         # Parar infraestrutura
-docker-compose logs -f      # Ver logs
+docker-compose up -d        # Iniciar MySQL
+docker-compose down         # Parar MySQL
+docker-compose logs -f      # Ver logs do MySQL
+
+# Testes da API
+curl http://localhost:8080/api/health  # Verificar saúde da API
 ```
 
-## 🧪 Testes
+## 🐳 Docker
+
+### Configuração do MySQL
+
+O sistema utiliza **MySQL 8.0** rodando em Docker para facilitar o desenvolvimento e deploy:
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hardlab-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: MinhaSenhaSegura
+      MYSQL_DATABASE: hard_lab
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+```
+
+### Comandos Docker
+
+```bash
+# Iniciar MySQL
+docker-compose up -d
+
+# Verificar status
+docker-compose ps
+
+# Ver logs
+docker-compose logs -f mysql
+
+# Parar MySQL
+docker-compose down
+
+# Parar e remover volumes (CUIDADO: apaga dados)
+docker-compose down -v
+```
+
+### Configuração da Aplicação
+
+O Spring Boot está configurado para conectar automaticamente com o MySQL do Docker:
+
+```properties
+# application.properties
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/hard_lab?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+spring.datasource.username=root
+spring.datasource.password=MinhaSenhaSegura
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.jpa.hibernate.ddl-auto=update
+```
+
+## 🧪 Testes e Qualidade
 
 ### Backend
 - **Testes Unitários**: JUnit 5 + Mockito
 - **Testes de Integração**: @SpringBootTest
-- **Testes de API**: @WebMvcTest
-- **Cobertura**: JaCoCo
+- **Validação de Dados**: Bean Validation
+- **Segurança**: Spring Security + JWT
 
 ### Frontend
-- **Testes Unitários**: Jest + React Testing Library
-- **Testes E2E**: Detox (opcional)
-- **Testes de Componentes**: Storybook
+- **Testes de Componentes**: Jest + React Testing Library
+- **Validação de Formulários**: Validação client-side
+- **TypeScript**: Tipagem estática para maior confiabilidade
+- **ESLint**: Análise de código e padrões
 
 ## 📊 Monitoramento
 
-### Métricas
-- **Health Checks**: Spring Boot Actuator
-- **Métricas**: Micrometer + Prometheus
-- **Logs**: Logback + ELK Stack (opcional)
-- **Performance**: APM com New Relic/Datadog
+### Health Checks
+- **API Status**: `GET /api/health` - Verificação de saúde
+- **CORS Test**: `GET /api/cors-test` - Teste de configuração
+- **Logs**: Spring Boot logging configurado
+- **Métricas**: Monitoramento básico de performance
 
-### Alertas
-- **Estoque baixo** - Notificações automáticas
-- **Erros de API** - Monitoramento de status codes
-- **Performance** - Tempo de resposta das APIs
-- **Storage** - Uso de disco para anexos
-
-## 🚀 Deploy
-
-### Ambiente de Desenvolvimento
-```bash
-# Local com Docker Compose
-docker-compose -f docker-compose.dev.yml up -d
-```
-
-### Ambiente de Produção
-```bash
-# Build das imagens
-docker build -t hardlab-backend ./java-back
-docker build -t hardlab-frontend ./react-front
-
-# Deploy com Docker Compose
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### CI/CD (GitHub Actions)
-- **Build automático** em push para main
-- **Testes automatizados** em pull requests
-- **Deploy automático** para staging/production
-- **Security scanning** com dependabot
+### Alertas do Sistema
+- **Estoque Baixo**: Notificações automáticas para administradores
+- **Erros de API**: Logs detalhados para debugging
+- **Performance**: Monitoramento de tempo de resposta
+- **Segurança**: Logs de tentativas de acesso não autorizado
 
 ## 🤝 Contribuição
 

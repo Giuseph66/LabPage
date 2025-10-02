@@ -1,5 +1,9 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# ===========================================
+# FRONTEND (React Native + Expo)
+# ===========================================
+
 # dependencies
 node_modules/
 
@@ -26,14 +30,137 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# typescript
+*.tsbuildinfo
+
+# ===========================================
+# BACKEND (Java + Spring Boot)
+# ===========================================
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Gradle
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# VS Code
+.vscode/
+
+# ===========================================
+# BANCO DE DADOS
+# ===========================================
+
+# MySQL dumps
+*.sql
+!**/init-scripts/*.sql
+
+# Database backups
+backups/
+*.backup
+
+# ===========================================
+# DOCKER
+# ===========================================
+
+# Docker volumes
+mysql_data/
+
+# ===========================================
+# SISTEMA OPERACIONAL
+# ===========================================
+
 # macOS
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# typescript
-*.tsbuildinfo
+# Linux
+*~
 
+# ===========================================
+# ARQUIVOS DE CONFIGURAÇÃO LOCAL
+# ===========================================
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Application properties (local)
+application-local.properties
+application-dev.properties
+
+# Logs
+*.log
+logs/
+
+# ===========================================
+# TEMPORÁRIOS E CACHE
+# ===========================================
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# ===========================================
+# ARQUIVOS ESPECÍFICOS DO PROJETO
+# ===========================================
+
+# Arquivos de exemplo
 app-example
+*example*
+
+# Arquivos de teste gerados
+test-results/
+coverage/
+
+# Arquivos de build
+build/
+dist/

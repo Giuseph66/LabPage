@@ -1,0 +1,30 @@
+[mysqld]
+# Configurações básicas
+default-authentication-plugin=mysql_native_password
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+
+# Configurações de performance
+innodb_buffer_pool_size=128M
+innodb_log_file_size=64M
+max_connections=200
+
+# Configurações de timezone
+default-time-zone='+00:00'
+
+# Configurações de log
+general_log=1
+general_log_file=/var/log/mysql/general.log
+slow_query_log=1
+slow_query_log_file=/var/log/mysql/slow.log
+long_query_time=2
+
+# Configurações de segurança
+bind-address=0.0.0.0
+skip-networking=0
+
+[mysql]
+default-character-set=utf8mb4
+
+[client]
+default-character-set=utf8mb4

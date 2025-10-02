@@ -305,9 +305,189 @@ curl "$url/api/components/by-barcode?code=LAB-RES-220R-001" \
   -H "Authorization: Bearer $TOKEN" -i
 ```
 
+### Pedidos/Ordens
+
+#### GET /api/orders
+- Finalidade: listar todos os pedidos
+- Acesso: público (sem autenticação)
+- Resposta (200 OK): array de pedidos
+
+Exemplo (cURL):
+```bash
+curl "$url/api/orders"
+```
+
+#### POST /api/orders
+- Finalidade: criar novo pedido
+- Acesso: protegido (JWT)
+- Body (JSON): dados do pedido
+- Resposta (200 OK): pedido criado
+
+Exemplo (cURL):
+```bash
+curl -X POST "$url/api/orders" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderNumber": "PED-2025-0001",
+    "status": "draft",
+    "requester": "João Silva",
+    "department": "Engenharia",
+    "priority": "medium",
+    "items": [
+      {
+        "componentName": "Resistor 10kΩ",
+        "quantity": 10,
+        "unitPrice": 0.05
+      }
+    ],
+    "total": 0.50
+  }'
+```
+
+### Projetos
+
+#### GET /api/projects
+- Finalidade: listar todos os projetos
+- Acesso: público (sem autenticação)
+- Resposta (200 OK): array de projetos
+
+Exemplo (cURL):
+```bash
+curl "$url/api/projects"
+```
+
+#### POST /api/projects
+- Finalidade: criar novo projeto
+- Acesso: protegido (JWT)
+- Body (JSON): dados do projeto
+- Resposta (200 OK): projeto criado
+
+Exemplo (cURL):
+```bash
+curl -X POST "$url/api/projects" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Sistema de Monitoramento IoT",
+    "shortDescription": "Desenvolvimento de sistema IoT para monitoramento de laboratório",
+    "categories": ["IoT", "Eletrônica"],
+    "responsible": "Prof. Maria Santos",
+    "plannedStart": "2025-01-15",
+    "plannedEnd": "2025-06-15",
+    "laboratories": ["Lab Eletrônica", "Lab IoT"]
+  }'
+```
+
+### Reservas
+
+#### GET /api/reservations
+- Finalidade: listar todas as reservas
+- Acesso: público (sem autenticação)
+- Resposta (200 OK): array de reservas
+
+Exemplo (cURL):
+```bash
+curl "$url/api/reservations"
+```
+
+#### POST /api/reservations
+- Finalidade: criar nova reserva
+- Acesso: protegido (JWT)
+- Body (JSON): dados da reserva
+- Resposta (200 OK): reserva criada
+
+Exemplo (cURL):
+```bash
+curl -X POST "$url/api/reservations" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceType": "equipment",
+    "resourceId": "OSC-001",
+    "resourceName": "Osciloscópio Digital",
+    "date": "2025-01-20",
+    "startTime": "09:00",
+    "endTime": "12:00",
+    "responsible": "João Silva",
+    "purpose": "Aulas práticas de eletrônica",
+    "participants": 20
+  }'
+```
+
+### Notificações
+
+#### GET /api/notifications
+- Finalidade: listar notificações do usuário
+- Acesso: protegido (JWT)
+- Resposta (200 OK): array vazio (funcionalidade em desenvolvimento)
+
+Exemplo (cURL):
+```bash
+curl "$url/api/notifications" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### POST /api/notifications/device-token
+- Finalidade: registrar token de push do dispositivo
+- Acesso: protegido (JWT)
+- Body (JSON): `{ "deviceToken": "expo_or_fcm_token_aqui" }`
+- Resposta (200 OK): token registrado
+
+Exemplo (cURL):
+```bash
+curl -X POST "$url/api/notifications/device-token" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "deviceToken": "expo_or_fcm_token_aqui" }'
+```
+
+### Sistema e Saúde
+
+#### GET /api/health
+- Finalidade: verificar status da API
+- Acesso: público
+- Resposta (200 OK): informações de saúde do sistema
+
+Exemplo (cURL):
+```bash
+curl "$url/api/health"
+```
+
+Resposta esperada:
+```json
+{
+  "status": "UP",
+  "timestamp": "2025-01-15T10:30:00Z",
+  "service": "Hard Lab API",
+  "version": "1.0.0",
+  "cors": "enabled"
+}
+```
+
+#### GET /api/cors-test
+- Finalidade: testar configuração CORS
+- Acesso: público
+- Resposta (200 OK): confirmação de CORS
+
+Exemplo (cURL):
+```bash
+curl "$url/api/cors-test"
+```
+
+Resposta esperada:
+```json
+{
+  "message": "CORS está funcionando corretamente!",
+  "timestamp": "2025-01-15T10:30:00Z"
+}
+```
+
 ### Observações Gerais
 - JWT: expiração em `security.jwt.expiration-ms` (padrão 24h) e segredo `security.jwt.secret`.
 - Perfis de acesso: `ADMIN`, `PROFESSOR`, `ACADEMICO`.
 - Erros de validação e regra de negócio seguem `GlobalExceptionHandler` (HTTP 400).
+- Endpoints públicos: `/api/orders`, `/api/projects`, `/api/reservations`, `/api/health`, `/api/cors-test`
+- Endpoints protegidos: todos os demais requerem JWT válido no header `Authorization: Bearer <token>`
 
 

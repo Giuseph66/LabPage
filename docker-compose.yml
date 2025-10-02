@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hardlab-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: MinhaSenhaSegura
+      MYSQL_DATABASE: hard_lab
+      MYSQL_USER: hardlab_user
+      MYSQL_PASSWORD: hardlab_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./java-back/banco_dados/docker/init-scripts:/docker-entrypoint-initdb.d
+      - ./java-back/banco_dados/docker/mysql.cnf:/etc/mysql/conf.d/mysql.cnf
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - hardlab-network
+
+  # Opcional: Adminer para gerenciamento do banco via web
+  adminer:
+    image: adminer:latest
+    container_name: hardlab-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mysql
+    restart: unless-stopped
+    networks:
+      - hardlab-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  hardlab-network:
+    driver: bridge
